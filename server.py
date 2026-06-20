@@ -29,7 +29,11 @@ app = Flask(__name__, static_folder=None)
 
 # Which model claude -p uses. Sonnet gives noticeably richer constellations;
 # set CONSTELLATION_MODEL=haiku to conserve your Max usage.
-MODEL = os.environ.get("CONSTELLATION_MODEL", "sonnet")
+# Engine selection: if OPENAI_API_KEY is set (e.g. on the deployed host) we use
+# the OpenAI API; otherwise we fall back to `claude -p` on your local Max plan.
+MODEL = os.environ.get("CONSTELLATION_MODEL", "sonnet")            # claude -p model (local)
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4-mini")      # confirm/override per your account
+USE_OPENAI = bool(os.environ.get("OPENAI_API_KEY"))
 MAX_TRANSCRIPT_WORDS = 14000
 CACHE_DIR = HERE / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
@@ -172,7 +176,7 @@ SCHEMA = """{
   }
 }"""
 
-PROMPT = """You are the reasoning engine of "Media Constellations", a tool that turns a piece of media into a multi-perspective constellation of ideas. Your job is NOT to tell anyone what to think — it is to increase the number of perspectives, intellectual traditions, historical parallels and constructive responses a viewer can hold at once.
+INSTRUCTIONS = """You are the reasoning engine of "Media Constellations", a tool that turns a piece of media into a multi-perspective constellation of ideas. Your job is NOT to tell anyone what to think — it is to increase the number of perspectives, intellectual traditions, historical parallels and constructive responses a viewer can hold at once.
 
 You are given a video's metadata and transcript. Produce ONE JSON object — and nothing else, no markdown fences, no commentary — matching EXACTLY this schema:
 
@@ -188,14 +192,37 @@ PRINCIPLES — follow them strictly:
 - Be even-handed and intellectually serious across the whole political and philosophical spectrum. If the media is politically charged, represent ITS OWN view at its strongest AND its critics at their strongest. Do not editorialise.
 - Do NOT include any colours or ids — the application assigns those.
 
-Output ONLY the JSON object.
+Output ONLY the JSON object.""".replace("{schema}", SCHEMA)
 
-=== MEDIA METADATA ===
-{meta}
 
-=== TRANSCRIPT ===
-{transcript}
-"""
+def generate(media_block: str):
+    """Pick the engine: OpenAI API when a key is present, else local claude -p."""
+    if USE_OPENAI:
+        return run_openai(media_block)
+    return run_claude(INSTRUCTIONS + "\n\n" + media_block)
+
+
+def run_openai(media_block: str):
+    """Generate the constellation via the OpenAI Chat Completions API (JSON mode)."""
+    from openai import OpenAI
+    client = OpenAI()  # reads OPENAI_API_KEY from the environment
+    kwargs = dict(
+        model=OPENAI_MODEL,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": INSTRUCTIONS},
+            {"role": "user", "content": media_block},
+        ],
+    )
+    try:
+        resp = client.chat.completions.create(max_completion_tokens=8000, **kwargs)
+    except Exception as e:
+        # Some models reject the token-limit param name; retry with defaults.
+        if "token" in str(e).lower() or isinstance(e, TypeError):
+            resp = client.chat.completions.create(**kwargs)
+        else:
+            raise
+    return json.loads(extract_json(resp.choices[0].message.content))
 
 
 def run_claude(prompt: str):
@@ -304,12 +331,12 @@ def analyze():
                 f'channel/speaker: {meta["uploader"] or "(unknown)"}\n'
                 f'duration: {meta["duration"] or "(unknown)"}\n'
                 f'url: https://www.youtube.com/watch?v={vid}')
-    prompt = PROMPT.format(schema=SCHEMA, meta=meta_str, transcript=transcript)
+    media_block = f"=== MEDIA METADATA ===\n{meta_str}\n\n=== TRANSCRIPT ===\n{transcript}"
 
     try:
-        constellation = colourise(run_claude(prompt))
+        constellation = colourise(generate(media_block))
     except subprocess.TimeoutExpired:
-        return jsonify(ok=False, error="Claude took too long (over 10 min). Try a shorter video, or set CONSTELLATION_MODEL=haiku for faster runs."), 504
+        return jsonify(ok=False, error="The model took too long (over 10 min). Try a shorter video."), 504
     except Exception as e:
         print(f"[analyze] {e}", file=sys.stderr)
         return jsonify(ok=False, error=f"Could not build the constellation: {e}"), 500
@@ -320,11 +347,12 @@ def analyze():
         cache_file.write_text(json.dumps(constellation, indent=2))
     except Exception as e:
         print(f"[cache] write failed: {e}", file=sys.stderr)
-    return jsonify(ok=True, constellation=constellation, model=MODEL)
+    return jsonify(ok=True, constellation=constellation, model=(OPENAI_MODEL if USE_OPENAI else MODEL))
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
+    engine = f"OpenAI API ({OPENAI_MODEL})" if USE_OPENAI else f"claude -p on Max ({MODEL})"
     print(f"\n  Media Constellations  →  http://127.0.0.1:{port}")
-    print(f"  model: {MODEL} (set CONSTELLATION_MODEL=haiku to conserve Max usage)\n")
+    print(f"  engine: {engine}\n")
     app.run(host="127.0.0.1", port=port, debug=False)
