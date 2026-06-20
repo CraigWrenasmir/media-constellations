@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Media Constellations — a machine for more perspectives</title>
+<style>
+  :root{
+    --bg:#070a14; --bg2:#0b1022; --ink:#e8ecf8;
+    --dim:#9aa6c8; --faint:#5d688f; --line:rgba(150,170,230,.14);
+    --card:rgba(20,28,54,.72); --card-b:rgba(120,150,230,.16);
+    --accent:#8fb6ff; --glow:rgba(143,182,255,.55);
+    --teal:#46d6c4; --violet:#b48bff; --amber:#ffc06a; --rose:#ff7fa8; --green:#7ce0a0;
+    --blue:#6fa8ff; --sand:#e7c98a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 800px at 70% -10%, #131c3a 0%, var(--bg2) 38%, var(--bg) 100%);
+    color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #stars{position:fixed;inset:0;z-index:0;display:block}
+  .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column}
+
+  /* ---------- top bar ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;padding:12px 18px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);backdrop-filter:blur(6px);
+  }
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .brand .mark{width:30px;height:30px;flex:0 0 auto}
+  .brand h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px;white-space:nowrap}
+  .brand small{display:block;color:var(--dim);font-size:11px;font-weight:400;letter-spacing:.3px}
+  .urlbar{display:flex;align-items:center;gap:8px;flex:1 1 360px;min-width:240px;
+    background:rgba(12,18,40,.7);border:1px solid var(--card-b);border-radius:11px;padding:6px 6px 6px 14px}
+  .urlbar svg{flex:0 0 auto;opacity:.6}
+  .urlbar input{flex:1;background:none;border:0;color:var(--ink);font-size:13.5px;outline:none;min-width:60px}
+  .urlbar input::placeholder{color:var(--faint)}
+  .urlbar button{background:linear-gradient(180deg,#5e83ff,#4a66e8);color:#fff;border:0;border-radius:8px;
+    padding:8px 15px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+  .urlbar button:hover{filter:brightness(1.08)}
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{background:rgba(30,40,74,.6);border:1px solid var(--card-b);color:var(--dim);
+    border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;transition:.15s}
+  .chip:hover{color:var(--ink);border-color:var(--accent)}
+  .chip.active{color:#cfe0ff;border-color:var(--accent);box-shadow:0 0 0 1px var(--glow) inset}
+  .ghostbtn{background:rgba(30,40,74,.5);border:1px solid var(--card-b);color:var(--dim);
+    border-radius:999px;padding:6px 13px;font-size:12px;cursor:pointer}
+  .ghostbtn:hover{color:var(--ink)}
+
+  /* ---------- main grid ---------- */
+  .main{flex:1;display:grid;grid-template-columns:330px 1fr 360px;gap:0;min-height:0}
+  .col{min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .left{border-right:1px solid var(--line)}
+  .right{border-left:1px solid var(--line)}
+  .pad{padding:16px 18px}
+  .scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(120,150,230,.3) transparent}
+  .scroll::-webkit-scrollbar{width:8px}
+  .scroll::-webkit-scrollbar-thumb{background:rgba(120,150,230,.28);border-radius:4px}
+
+  /* player */
+  .player{aspect-ratio:16/9;background:#000;border-radius:0;position:relative}
+  .player iframe{width:100%;height:100%;border:0;display:block}
+  .meta h2{font-size:17px;margin:2px 0 4px;line-height:1.25}
+  .meta .by{color:var(--accent);font-size:13px;font-weight:600}
+  .meta .sub{color:var(--dim);font-size:12px;margin-top:2px}
+  .blurb{color:var(--dim);font-size:13px;margin-top:12px;font-style:italic;
+    border-left:2px solid var(--card-b);padding-left:11px}
+  .seclabel{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);
+    margin:20px 0 9px;font-weight:600}
+  .echo{display:flex;gap:10px;margin:9px 0;font-size:12.5px}
+  .echo b{color:var(--sand);font-weight:600}
+  .echo .yr{color:var(--faint);font-size:11px;flex:0 0 auto;width:40px}
+  .echo p{margin:0;color:var(--dim)}
+
+  /* ---------- constellation center ---------- */
+  .center{position:relative;background:
+    radial-gradient(700px 540px at 50% 46%, rgba(40,58,120,.20), transparent 70%);}
+  #sky{position:absolute;inset:0;width:100%;height:100%}
+  .hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);
+    color:var(--faint);font-size:12px;letter-spacing:.3px;pointer-events:none;text-align:center;width:90%}
+  /* svg node styles handled inline + classes */
+  .node{cursor:pointer}
+  .node text{font-size:12px;fill:var(--ink);text-anchor:middle;pointer-events:none;
+    paint-order:stroke;stroke:rgba(7,10,20,.85);stroke-width:3px;font-weight:500}
+  .node .ring{fill:none;stroke-width:1.2}
+  .center-node text{font-size:12.5px;font-weight:600;fill:#dfe7ff}
+  .thinker text{font-size:11px;fill:#d6deff}
+  .thinker .match{font-size:9.5px;fill:var(--faint);font-weight:600}
+  .dimmed{opacity:.18;transition:opacity .4s}
+  .missing-node text{fill:#ffd9e6}
+  .edge{stroke:var(--line);stroke-width:1}
+  .edge.live{stroke:rgba(160,190,255,.4)}
+  .edge.missing{stroke:rgba(255,140,180,.4);stroke-dasharray:3 5}
+
+  .reveal-btn{position:absolute;left:50%;top:14px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:9px;
+    background:linear-gradient(180deg,rgba(40,30,70,.9),rgba(30,22,56,.92));
+    border:1px solid rgba(180,139,255,.45);color:#e9ddff;border-radius:999px;
+    padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;
+    box-shadow:0 6px 26px rgba(120,80,220,.35),0 0 0 1px rgba(180,139,255,.15) inset;
+    transition:.18s}
+  .reveal-btn:hover{filter:brightness(1.12);transform:translateX(-50%) translateY(-1px)}
+  .reveal-btn.on{background:linear-gradient(180deg,#7a5bd8,#6346c0);color:#fff}
+  .reveal-btn .pulse{width:8px;height:8px;border-radius:50%;background:#ff9ec6;
+    box-shadow:0 0 10px #ff7fb0;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.3)}}
+
+  /* ---------- right rail ---------- */
+  .panel-title{font-size:14.5px;font-weight:650;margin:0 0 3px}
+  .tag{display:inline-block;background:rgba(40,52,94,.7);border:1px solid var(--card-b);
+    color:var(--dim);border-radius:6px;padding:3px 8px;font-size:11px;margin:3px 5px 0 0}
+  .tag.emo{color:#ffd0a0;border-color:rgba(255,180,120,.25)}
+  .tag.rhet{color:#c0b0ff;border-color:rgba(180,150,255,.25)}
+  .qa{margin:14px 0}
+  .qa h4{font-size:12px;color:var(--accent);margin:0 0 4px;font-weight:600;letter-spacing:.2px}
+  .qa ul{margin:0;padding-left:17px;color:var(--dim);font-size:13px}
+  .qa ul li{margin:4px 0}
+  .qa p{margin:0;color:var(--ink);font-size:13.5px}
+
+  .reading{border:1px solid var(--card-b);border-radius:10px;padding:11px 13px;margin:9px 0;
+    background:rgba(16,22,46,.55)}
+  .reading .lens{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+  .reading p{margin:5px 0 0;font-size:13px;color:var(--ink)}
+
+  .thinker-card .name{font-size:16px;font-weight:650}
+  .thinker-card .trad{color:var(--accent);font-size:12px;font-weight:600;margin-top:1px}
+  .matchbar{height:5px;border-radius:3px;background:rgba(255,255,255,.08);margin:10px 0;overflow:hidden}
+  .matchbar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#5e83ff,#b48bff)}
+  .book{display:flex;gap:9px;margin:8px 0;font-size:12.5px}
+  .book .bk{color:var(--sand);font-weight:600}
+  .book .bc{color:var(--dim);font-style:italic}
+  .backlink{color:var(--accent);cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:5px;margin-bottom:8px}
+  .backlink:hover{text-decoration:underline}
+
+  /* ---------- praxis dock ---------- */
+  .dock{border-top:1px solid var(--line);background:rgba(8,12,26,.82);backdrop-filter:blur(8px)}
+  .dock-head{display:flex;align-items:center;gap:8px;padding:9px 18px;flex-wrap:wrap}
+  .dock-head .lbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);
+    font-weight:600;margin-right:4px}
+  .ptab{background:none;border:1px solid transparent;color:var(--dim);border-radius:8px;
+    padding:5px 11px;font-size:12.5px;cursor:pointer}
+  .ptab:hover{color:var(--ink)}
+  .ptab.active{color:#fff;background:rgba(50,66,120,.6);border-color:var(--card-b)}
+  .dock-toggle{margin-left:auto;color:var(--dim);cursor:pointer;font-size:12px;
+    border:1px solid var(--card-b);border-radius:8px;padding:5px 11px;background:rgba(30,40,74,.5)}
+  .dock-body{padding:4px 18px 16px;display:grid;grid-template-columns:1.4fr 1fr;gap:22px;
+    max-height:30vh;overflow-y:auto}
+  .dock.collapsed .dock-body{display:none}
+  .praxis-list{margin:0;padding-left:18px}
+  .praxis-list li{margin:7px 0;font-size:13.5px;color:var(--ink)}
+  .praxis-list li small{display:block;color:var(--dim);font-size:12px;margin-top:1px}
+  .personas .seclabel{margin-top:0}
+  .persona{margin:9px 0}
+  .persona b{color:var(--violet)}
+  .persona .pl{color:var(--faint);font-size:11px;margin-left:6px}
+  .persona p{margin:2px 0 0;color:var(--dim);font-size:12.5px}
+
+  /* atlas overlay */
+  .overlay{position:fixed;inset:0;z-index:50;background:rgba(4,7,16,.74);backdrop-filter:blur(5px);
+    display:none;align-items:center;justify-content:center;padding:30px}
+  .overlay.on{display:flex}
+  .atlas{max-width:680px;width:100%;max-height:84vh;overflow:auto;background:linear-gradient(180deg,#0d142c,#0a0f22);
+    border:1px solid var(--card-b);border-radius:18px;padding:26px 30px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .atlas h2{margin:0 0 2px;font-size:20px}
+  .atlas .sub{color:var(--dim);font-size:13px;margin-bottom:18px}
+  .atlas .x{float:right;cursor:pointer;color:var(--dim);font-size:22px;line-height:1;margin:-6px -8px 0 0}
+  .bars div{margin:7px 0}
+  .bars .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
+  .bars .row span:last-child{color:var(--faint);font-size:11px}
+  .bars .b{height:7px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
+  .bars .b i{display:block;height:100%;background:linear-gradient(90deg,#46d6c4,#8fb6ff)}
+  .atlas .empty{color:var(--dim);font-style:italic;padding:20px 0}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:rgba(20,26,50,.96);border:1px solid var(--card-b);color:var(--ink);
+    padding:12px 18px;border-radius:12px;font-size:13px;z-index:60;opacity:0;pointer-events:none;
+    transition:.3s;max-width:440px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast b{color:var(--accent)}
+
+  @media (max-width:1080px){
+    .main{grid-template-columns:1fr;grid-template-rows:auto 50vh auto}
+    .left,.right{border:0;border-bottom:1px solid var(--line)}
+    .left .scroll{max-height:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="4.5" fill="#8fb6ff"/>
+        <circle cx="20" cy="20" r="9" stroke="#46d6c4" stroke-width="1" opacity=".7"/>
+        <circle cx="20" cy="20" r="15" stroke="#b48bff" stroke-width="1" opacity=".5"/>
+        <circle cx="29" cy="20" r="2.2" fill="#46d6c4"/>
+        <circle cx="20" cy="6.5" r="2" fill="#b48bff"/>
+        <circle cx="9" cy="27" r="1.7" fill="#ffc06a"/>
+        <circle cx="33" cy="31" r="1.5" fill="#ff7fa8"/>
+      </svg>
+      <div>
+        <h1>Media Constellations</h1>
+        <small>increasing the dimensionality of understanding</small>
+      </div>
+    </div>
+    <div class="urlbar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2a2.8 2.8 0 0 0-2-2C17.9 4.8 12 4.8 12 4.8s-5.9 0-7.6.4a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2 12a29 29 0 0 0 .4 4.8 2.8 2.8 0 0 0 2 2c1.7.4 7.6.4 7.6.4s5.9 0 7.6-.4a2.8 2.8 0 0 0 2-2A29 29 0 0 0 22 12a29 29 0 0 0-.4-4.8ZM10 15V9l5 3-5 3Z"/></svg>
+      <input id="url" placeholder="Paste a YouTube URL…  (try a curated talk below)" />
+      <button id="mapit">Map it</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <button class="ghostbtn" id="atlasBtn">✦ Your Atlas</button>
+  </header>
+
+  <div class="main">
+    <!-- LEFT : player + media analysis -->
+    <div class="col left">
+      <div class="player" id="player"></div>
+      <div class="pad scroll">
+        <div class="meta" id="meta"></div>
+        <div class="blurb" id="blurb"></div>
+        <div id="echoes"></div>
+      </div>
+    </div>
+
+    <!-- CENTER : the constellation -->
+    <div class="col center" id="center">
+      <button class="reveal-btn" id="revealBtn"><span class="pulse"></span>Show me perspectives I haven't considered</button>
+      <svg id="sky"></svg>
+      <div class="hint" id="hint">Tap a glowing theme to open its thinkers · tap a thinker to read the lens</div>
+    </div>
+
+    <!-- RIGHT : analysis / contradictions / thinker detail -->
+    <div class="col right scroll pad" id="rail"></div>
+  </div>
+
+  <!-- PRAXIS DOCK -->
+  <div class="dock" id="dock">
+    <div class="dock-head">
+      <span class="lbl">Praxis — what can be done</span>
+      <button class="ptab active" data-mode="reflective">Reflective</button>
+      <button class="ptab" data-mode="educational">Educational</button>
+      <button class="ptab" data-mode="community">Community</button>
+      <button class="ptab" data-mode="civic">Civic</button>
+      <button class="ptab" data-mode="creative">Creative</button>
+      <button class="ptab" data-mode="organising">Organising</button>
+      <button class="dock-toggle" id="dockToggle">Hide ▾</button>
+    </div>
+    <div class="dock-body">
+      <div><ul class="praxis-list" id="praxisList"></ul></div>
+      <div class="personas">
+        <div class="seclabel">Walk with…</div>
+        <div id="personas"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="atlasOverlay">
+  <div class="atlas">
+    <span class="x" id="atlasClose">×</span>
+    <h2>Your Atlas</h2>
+    <div class="sub">Not a map of identity — a map of attention. What keeps returning across what you watch.</div>
+    <div id="atlasBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   MEDIA CONSTELLATIONS — single-file prototype
+   Hand-authored constellations for three real talks.
+   ============================================================ */
+
+const PALETTE = {teal:'#46d6c4',violet:'#b48bff',amber:'#ffc06a',rose:'#ff7fa8',green:'#7ce0a0',blue:'#6fa8ff',sand:'#e7c98a'};
+
+const MEDIA = {
+  /* ---------------------------------------------------------- */
+  hanson:{
+    yt:'N17G0Mw43YA',
+    title:'Address to the National Press Club',
+    speaker:'Pauline Hanson',
+    sub:'National Press Club · 2026 · ~45 min · political speech',
+    blurb:'“Australians are mad as hell… they want their country back.” — a populist case that mass immigration, an out-of-touch elite and a taxpayer-funded media have betrayed ordinary Australians.',
+    analysis:{
+      happening:'Australia’s longest-serving minor-party leader makes a populist pitch: that record migration, an unaccountable elite and a partisan public broadcaster have failed “ordinary Australians” — and that One Nation is the channel for their anger. Concrete planks include cutting migration, one national “cultural umbrella”, scrapping SBS and part-defunding the ABC.',
+      assumptions:['That there is a single, coherent “Australian people” whose will has been ignored.','That immigration numbers are a primary cause — not a symptom — of housing and cohesion strain.','That national belonging requires one shared “cultural umbrella”.','That public broadcasters are an elite gatekeeper the internet has made redundant.'],
+      tensions:['Speaks for “the people’s” sovereignty while representing a minority of the vote.','“Take our country back” — on a continent never ceded by its First Peoples.','Attacks the establishment as a 30-year parliamentary incumbent.','Defends free speech while proposing to defund broadcasters she opposes.'],
+      absent:['First Nations sovereignty — whose country, and back to when?','Migrants’ own voices, and the economic data on their contribution.','The structural housing drivers (supply, tax settings, infrastructure) migration is standing in for.','The Pacific and climate justice behind her climate scepticism.'],
+      questions:['Which strains are caused by migration, and which by policy choices about housing, wages and infrastructure?','Whose “cultural umbrella”, chosen by whom?','What would actually rebuild the cohesion she says has been lost?']
+    },
+    echoes:[
+      {yr:'1901',t:'White Australia Policy',p:'The Immigration Restriction Act — the nation’s founding attempt to legislate who belongs. Resonance, not equivalence.'},
+      {yr:'1996',t:'Hanson’s maiden speech',p:'“Swamped by Asians.” Her own earlier single story — the speaker echoing herself thirty years on.'},
+      {yr:'2001',t:'Tampa — “we will decide”',p:'Howard’s “we will decide who comes to this country” — border control as sovereignty made vivid.'},
+      {yr:'2016',t:'Brexit / Trump',p:'“Take back control.” The global populist wave Hanson’s framing draws on and feeds.'}
+    ],
+    themes:[
+      {id:'immig',label:'Immigration & the Nation',color:PALETTE.amber,
+        emotion:['anxiety','loss of control'],rhetoric:['the big number (1.27m)','sovereignty appeal'],
+        readings:[
+          {lens:'Populist-nationalist',color:PALETTE.amber,p:'A people has the right to set the pace and terms of its own change; record migration without consent strains housing, services and the felt sense of a shared home.'},
+          {lens:'Liberal-cosmopolitan',color:PALETTE.blue,p:'Movement is a freedom and a good; migrants build the economy and the culture, and moral worth does not stop at a border.'},
+          {lens:'Political-economy',color:PALETTE.green,p:'“Immigration” is a lightning rod for housing under-supply, tax settings and employer wage-suppression — blame the system’s design, not the migrant.'}
+        ],
+        thinkers:[
+          {name:'Benedict Anderson',match:91,trad:'Nationalism studies',why:'The nation is an “imagined community” — invented, yet genuinely felt and worth taking seriously as feeling.',books:[{t:'Imagined Communities',y:1983,c:'the imagined nation'}],concepts:['imagined community','print-capitalism']},
+          {name:'David Goodhart',match:86,trad:'Communitarian commentary',why:'Names the “Somewheres” — rooted, place-attached people whose anxieties liberal “Anywheres” dismiss.',books:[{t:'The Road to Somewhere',y:2017,c:'Somewheres & Anywheres'}],concepts:['cultural anxiety','the achievement society']},
+          {name:'Joseph Carens',match:80,trad:'Political philosophy',why:'The strong liberal counter: closed borders are the modern equivalent of feudal privilege.',books:[{t:'The Ethics of Immigration',y:2013,c:'open borders'}],concepts:['birthright privilege','social membership']}
+        ]},
+      {id:'pop',label:'Populism & “the People”',color:PALETTE.rose,
+        emotion:['anger','vindication'],rhetoric:['“mad as hell”','people-vs-elite frame'],
+        readings:[
+          {lens:'Populist-democratic',color:PALETTE.rose,p:'Populism is a corrective — it re-enfranchises voters a comfortable consensus had stopped listening to.'},
+          {lens:'Liberal-constitutional',color:PALETTE.blue,p:'The claim “we alone are the people” is anti-pluralist; it delegitimises opponents and erodes the institutions that protect everyone.'},
+          {lens:'Discursive (Laclau)',color:PALETTE.violet,p:'“The people” is always constructed by drawing a frontier against an enemy — left and right both do it; the question is which chain of demands it binds.'}
+        ],
+        thinkers:[
+          {name:'Cas Mudde',match:90,trad:'Political science',why:'Defines populism as a “thin” ideology splitting a pure people from a corrupt elite.',books:[{t:'Populism: A Very Short Introduction',y:2017,c:'thin-centred ideology'}],concepts:['the pure people','the corrupt elite']},
+          {name:'Jan-Werner Müller',match:84,trad:'Political theory',why:'Argues populism’s core is anti-pluralism — the claim that only it represents the real people.',books:[{t:'What Is Populism?',y:2016,c:'anti-pluralism'}],concepts:['exclusive representation','the silent majority']},
+          {name:'Ernesto Laclau',match:79,trad:'Post-Marxist theory',why:'Sees populism not as a pathology but as the very logic by which any “people” is forged.',books:[{t:'On Populist Reason',y:2005,c:'the construction of a people'}],concepts:['empty signifier','chains of equivalence']}
+        ]},
+      {id:'identity',label:'Identity & the “Cultural Umbrella”',color:PALETTE.teal,
+        emotion:['nostalgia','protectiveness'],rhetoric:['assimilation appeal','one-nation unity'],
+        readings:[
+          {lens:'Civic-nationalist',color:PALETTE.teal,p:'A shared public culture and language is the glue of solidarity; without common ground, trust and the welfare state fray.'},
+          {lens:'Multiculturalist',color:PALETTE.blue,p:'Liberal democracies can recognise group difference and still cohere; minority rights are part of equal citizenship, not a threat to it.'},
+          {lens:'Postcolonial / settler-critique',color:PALETTE.green,p:'One “umbrella” in a settler-colonial nation assumes whose culture is the umbrella — and writes over the continent’s First Peoples.'}
+        ],
+        thinkers:[
+          {name:'Will Kymlicka',match:87,trad:'Liberal political philosophy',why:'Shows minority rights can be grounded in liberal equality, not opposed to it.',books:[{t:'Multicultural Citizenship',y:1995,c:'group-differentiated rights'}],concepts:['societal culture','polyethnic rights']},
+          {name:'Ghassan Hage',match:85,trad:'Australian anthropology',why:'“White Nation” dissects the fantasy of a governing white belonging that positions others as guests to be tolerated or expelled.',books:[{t:'White Nation',y:1998,c:'the fantasy of white governance'}],concepts:['governmental belonging','tolerance as power']},
+          {name:'Charles Taylor',match:78,trad:'Communitarian philosophy',why:'Identity needs recognition; misrecognition is a real harm — and a real political demand on both sides.',books:[{t:'The Politics of Recognition',y:1992,c:'recognition'}],concepts:['recognition','the dialogical self']}
+        ]},
+      {id:'media',label:'Media, Truth & the Public Sphere',color:PALETTE.violet,
+        emotion:['distrust','defiance'],rhetoric:['scrap SBS / defund ABC','elite-media critique'],
+        readings:[
+          {lens:'Populist media-critique',color:PALETTE.violet,p:'Taxpayer broadcasters act as a partisan gatekeeper; the internet has democratised voice and ended their monopoly on the national conversation.'},
+          {lens:'Habermasian',color:PALETTE.blue,p:'A shared, non-market public sphere is a democratic good; defund it and deliberation fragments into siloed, monetised outrage.'},
+          {lens:'Critical (Chomsky)',color:PALETTE.amber,p:'All media — public and private — filter reality for whoever funds them; the healthy response is literacy and suspicion, not just defunding one side.'}
+        ],
+        thinkers:[
+          {name:'Jürgen Habermas',match:88,trad:'Critical theory',why:'The public sphere is where private people reason together into a public — and it can be re-feudalised by money and PR.',books:[{t:'The Structural Transformation of the Public Sphere',y:1962,c:'the public sphere'}],concepts:['communicative action','refeudalisation']},
+          {name:'Noam Chomsky',match:81,trad:'Media critique',why:'The propaganda model: media manufacture consent through ownership, advertising and sourcing filters.',books:[{t:'Manufacturing Consent',y:1988,c:'the propaganda model'}],concepts:['manufacturing consent','the filters']},
+          {name:'Nancy Fraser',match:76,trad:'Critical theory',why:'Asks who the “public” has always excluded, and defends the counterpublics that talk back.',books:[{t:'Rethinking the Public Sphere',y:1990,c:'subaltern counterpublics'}],concepts:['counterpublics','participatory parity']}
+        ]},
+      {id:'resent',label:'Belonging, Fear & Resentment',color:PALETTE.green,
+        emotion:['grievance','dignity-hunger'],rhetoric:['“take our country back”','left-behind appeal'],
+        readings:[
+          {lens:'Recognition-of-grievance',color:PALETTE.green,p:'The status and economic anxiety of those left behind is real, and was dismissed for a generation; ignoring it is what grew the movement.'},
+          {lens:'Dignity-politics',color:PALETTE.teal,p:'This is a demand for thymos — recognition and respect — at least as much as for economics.'},
+          {lens:'Critical-psychosocial',color:PALETTE.rose,p:'Resentment is mobilised and misdirected; scapegoating an out-group displaces blame that belongs to structural choices.'}
+        ],
+        thinkers:[
+          {name:'Arlie Hochschild',match:89,trad:'Sociology',why:'Climbs the “empathy wall” to inhabit the “deep story” of the populist base without endorsing or mocking it.',books:[{t:'Strangers in Their Own Land',y:2016,c:'the deep story'}],concepts:['empathy wall','the deep story']},
+          {name:'Francis Fukuyama',match:83,trad:'Political theory',why:'Reads the moment as a politics of identity and dignity (thymos), not only material interest.',books:[{t:'Identity',y:2018,c:'thymos & dignity'}],concepts:['thymos','demand for recognition']},
+          {name:'Wendy Brown',match:77,trad:'Critical theory',why:'The critical counter: neoliberalism’s wounds curdle into ressentiment and “wounded attachments”.',books:[{t:'In the Ruins of Neoliberalism',y:2019,c:'ressentiment'}],concepts:['wounded attachments','de-democratisation']}
+        ]}
+    ],
+    missing:[
+      {label:'First Nations sovereignty',color:PALETTE.sand,why:'“Take our country back” and “one cultural umbrella” land entirely differently on a continent whose first peoples never ceded it — and who hold their own claim to belonging and country.'},
+      {label:'Migrants’ own voices',color:PALETTE.blue,why:'The people at the centre of the speech are spoken about, almost never with — their labour, contribution and lived experience are absent from the frame.'},
+      {label:'Structural housing economics',color:PALETTE.green,why:'Supply constraints, tax settings like negative gearing, and infrastructure lag drive housing stress; migration is often the visible stand-in for these slower, duller causes.'},
+      {label:'Climate justice & the Pacific',color:PALETTE.teal,why:'Behind the climate scepticism are Pacific neighbours already bearing costs — and a generational-justice claim the speech doesn’t engage.'}
+    ],
+    praxis:{
+      reflective:[
+        {t:'Name your own “deep story”.',s:'Hochschild’s exercise: the felt, as-if-true story underneath your politics — then try to write someone else’s fairly.'},
+        {t:'Audit your information diet.',s:'Where did your picture of “immigration” actually come from — data, a feed, a fear?'}
+      ],
+      educational:[
+        {t:'Read across the frontier: Goodhart AND Carens',s:'Hold the strongest version of both the rootedness case and the open-borders case at once.'},
+        {t:'Read Hage, White Nation (1998)',s:'The Australian critique of who gets to feel like the host.'},
+        {t:'Find the real migration & housing data',s:'Separate what migration causes from what policy choices cause.'}
+      ],
+      community:[
+        {t:'Host a cross-difference dialogue',s:'Not debate — structured listening between people who voted opposite ways.'},
+        {t:'Run a local & migrant story-exchange',s:'Replace the abstraction “migrants” with named neighbours and their stories.'}
+      ],
+      civic:[
+        {t:'Learn how the migration cap is actually set',s:'Then make a submission to the migration-program or housing-policy consultations few people send.'},
+        {t:'Engage your local member on housing supply',s:'Direct pressure where the structural lever actually sits.'}
+      ],
+      creative:[
+        {t:'Write the “deep story” of someone you disagree with',s:'Make it so fair they would recognise themselves in it.'},
+        {t:'Document belonging where you live',s:'Whose country is it, across all the layers of its history?'}
+      ],
+      organising:[
+        {t:'Back depolarising, lawful civic work',s:'Bridging organisations that lower the temperature without erasing real disagreement.'},
+        {t:'Join housing & just-transition campaigns',s:'Address the structural drivers the immigration frame stands in for.'}
+      ],
+      personas:[
+        {n:'Arlie Hochschild',l:'climb the empathy wall',p:'Inhabit the “deep story” of those you find hardest — understanding is not agreement, but it is where change starts.'},
+        {n:'Chantal Mouffe',l:'agonistic respect',p:'Turn enemies into legitimate adversaries: keep the conflict, drop the will to annihilate. Democracy needs contest, not consensus or war.'},
+        {n:'Hannah Arendt',l:'plurality',p:'The common world is real only seen from many positions at once — hold it open rather than collapsing it into one people.'},
+        {n:'Indigenous relational responsibility',l:'whose country',p:'Ground every claim about “belonging” in the continent’s first and continuing custodians, and the obligations that come with place.'}
+      ]
+    }
+  },
+  /* ---------------------------------------------------------- */
+  adichie:{
+    yt:'D9Ihs241zeg',
+    title:'The danger of a single story',
+    speaker:'Chimamanda Ngozi Adichie',
+    sub:'TED · 2009 · 19 min · talk',
+    blurb:'“The single story creates stereotypes, and the problem with stereotypes is not that they are untrue, but that they are incomplete.”',
+    analysis:{
+      happening:'A novelist argues that power decides which stories get told about whom — and that knowing a people through one narrative, however true, flattens them into a stereotype.',
+      assumptions:['That stories are not neutral — they carry the authority of whoever holds the pen.','That representation shapes reality, not just reflects it.','That empathy is a learnable, narrative capacity.'],
+      tensions:['More stories = more understanding — yet more stories can also entrench the loudest ones.','Speaking for the marginalised can itself become a new single story.','The talk critiques Western framing while delivered in its most prestigious format (TED).'],
+      absent:['Disability — the inspiration/tragedy single story.','Indigenous standpoint — deficit narratives in settler nations.','Class & the publishing economy — who can afford to write at all.'],
+      questions:['Whose single story do I currently mistake for the whole person?','Which stories about my own group do I wish were heard?','Who profits from the stories that circulate most easily?']
+    },
+    echoes:[
+      {yr:'1850s',t:'“Darkest Africa”',p:'Victorian travel writing inventing a continent of lack to justify empire.'},
+      {yr:'1901',t:'White Australia Policy',p:'A nation narrating belonging through a single story of who counts.'},
+      {yr:'1978',t:'Said, Orientalism',p:'The West producing “the East” as a fixed, knowable, lesser thing.'},
+      {yr:'2014',t:'#WeNeedDiverseBooks',p:'A campaign to widen whose stories reach children’s shelves.'}
+    ],
+    themes:[
+      {id:'power',label:'The Single Story as Power',color:PALETTE.amber,
+        emotion:['recognition','gentle indignation'],rhetoric:['personal anecdote','irony','refrain'],
+        readings:[
+          {lens:'Postcolonial',color:PALETTE.amber,p:'The single story is a colonial inheritance — narration was always an instrument of rule.'},
+          {lens:'Liberal-humanist',color:PALETTE.blue,p:'Stories build empathy; the cure for a bad story is simply more and better stories.'},
+          {lens:'Media-structural',color:PALETTE.green,p:'It is not malice but the political economy of publishing and algorithms that narrows whose stories travel.'}
+        ],
+        thinkers:[
+          {name:'Edward Said',match:95,trad:'Postcolonial theory',why:'“Orientalism” shows how the powerful produce the very people they claim merely to describe.',books:[{t:'Orientalism',y:1978,c:'imaginative geography'}],concepts:['othering','discourse','the worldly text']},
+          {name:'Michel Foucault',match:90,trad:'Post-structuralism',why:'Knowledge is never innocent of power — to define is to govern.',books:[{t:'The Order of Things',y:1966,c:'regimes of truth'}],concepts:['power/knowledge','discourse']},
+          {name:'Gayatri Spivak',match:84,trad:'Postcolonial / deconstruction',why:'Asks whether the subaltern can speak, or is only ever spoken for.',books:[{t:'Can the Subaltern Speak?',y:1988,c:'epistemic violence'}],concepts:['the subaltern','strategic essentialism']}
+        ]},
+      {id:'rep',label:'Representation & Stereotype',color:PALETTE.violet,
+        emotion:['warmth','unease'],rhetoric:['contrast','self-deprecation'],
+        readings:[
+          {lens:'Cultural studies',color:PALETTE.violet,p:'Meaning is made in representation; stereotypes fix the open play of meaning into a single position.'},
+          {lens:'Psychoanalytic',color:PALETTE.rose,p:'The stereotype is an anxious fantasy — it says more about the one who holds it than the one described.'},
+          {lens:'Pragmatic',color:PALETTE.blue,p:'Stereotypes are cognitive shortcuts; the task is correction and exposure, not abolition.'}
+        ],
+        thinkers:[
+          {name:'Stuart Hall',match:93,trad:'Cultural studies',why:'Representation does not mirror the world — it constitutes how we can see it at all.',books:[{t:'Representation',y:1997,c:'encoding / decoding'}],concepts:['the politics of representation','articulation']},
+          {name:'Homi Bhabha',match:81,trad:'Postcolonial theory',why:'The stereotype is ambivalent — endlessly repeated because never quite believed.',books:[{t:'The Location of Culture',y:1994,c:'mimicry & hybridity'}],concepts:['ambivalence','the third space']},
+          {name:'Frantz Fanon',match:86,trad:'Anticolonial psychiatry',why:'Names the wound of being seen through another’s fixed image of you.',books:[{t:'Black Skin, White Masks',y:1952,c:'the racial gaze'}],concepts:['the gaze','lived experience of the body']}
+        ]},
+      {id:'empathy',label:'Empathy & the Other',color:PALETTE.rose,
+        emotion:['hope','tenderness'],rhetoric:['narrative imagination','appeal to shared humanity'],
+        readings:[
+          {lens:'Narrative ethics',color:PALETTE.rose,p:'Literature trains the moral imagination to inhabit lives unlike our own.'},
+          {lens:'Levinasian',color:PALETTE.violet,p:'The Other’s face makes an infinite claim that no story can fully capture or close.'},
+          {lens:'Sceptical',color:PALETTE.amber,p:'Empathy is partial and seducible — it can be harvested by the very powers it should resist.'}
+        ],
+        thinkers:[
+          {name:'Martha Nussbaum',match:88,trad:'Capabilities / ethics',why:'Defends the novel as civic equipment for democratic empathy.',books:[{t:'Poetic Justice',y:1995,c:'the literary imagination'}],concepts:['narrative imagination','fragility of goodness']},
+          {name:'Emmanuel Levinas',match:79,trad:'Phenomenology / ethics',why:'Ethics begins before stories, in the face-to-face encounter with the Other.',books:[{t:'Totality and Infinity',y:1961,c:'the face of the Other'}],concepts:['alterity','responsibility']},
+          {name:'Susan Sontag',match:74,trad:'Essayist / critic',why:'Warns how easily images of others’ suffering anaesthetise rather than move us.',books:[{t:'Regarding the Pain of Others',y:2003,c:'spectatorship'}],concepts:['compassion fatigue','the photographic gaze']}
+        ]},
+      {id:'lang',label:'Language & Decolonisation',color:PALETTE.green,
+        emotion:['pride','reclamation'],rhetoric:['testimony','reclaiming voice'],
+        readings:[
+          {lens:'Decolonial',color:PALETTE.green,p:'To free a people you must free the language they dream in.'},
+          {lens:'Reformist',color:PALETTE.blue,p:'The master’s language can be reworlded from within — write back in the colonial tongue.'},
+          {lens:'Feminist',color:PALETTE.rose,p:'Talking back, from margin to centre, is itself a political act of selfhood.'}
+        ],
+        thinkers:[
+          {name:'Ngũgĩ wa Thiong’o',match:90,trad:'African literature',why:'Argues language is the carrier of memory and the deepest site of colonisation.',books:[{t:'Decolonising the Mind',y:1986,c:'language & power'}],concepts:['linguistic imperialism','orature']},
+          {name:'Chinua Achebe',match:85,trad:'African literature',why:'Wrote Africa from the inside, refusing the European single story of the continent.',books:[{t:'Things Fall Apart',y:1958,c:'narrating from within'}],concepts:['counter-narrative','the writer as teacher']},
+          {name:'bell hooks',match:80,trad:'Black feminism',why:'“Talking back” turns silenced speech into liberatory practice.',books:[{t:'Talking Back',y:1989,c:'voice from the margin'}],concepts:['margin to centre','engaged voice']}
+        ]},
+      {id:'identity',label:'Identity & Double Consciousness',color:PALETTE.teal,
+        emotion:['belonging','doubleness'],rhetoric:['autobiography','the “American” reframe'],
+        readings:[
+          {lens:'Du Boisian',color:PALETTE.teal,p:'To be marginalised is to see yourself always through the eyes of those who diminish you.'},
+          {lens:'Diasporic',color:PALETTE.blue,p:'Identity is not roots but routes — formed in movement, mixture and return.'},
+          {lens:'Constructivist',color:PALETTE.violet,p:'Identity is performed and narrated, never simply found.'}
+        ],
+        thinkers:[
+          {name:'W.E.B. Du Bois',match:87,trad:'Sociology',why:'Names the “two-ness” of seeing yourself through a contemptuous world’s eyes.',books:[{t:'The Souls of Black Folk',y:1903,c:'double consciousness'}],concepts:['the veil','double consciousness']},
+          {name:'Stuart Hall',match:82,trad:'Cultural studies',why:'Identity as an unfinished production — “becoming” as much as “being”.',books:[{t:'Cultural Identity & Diaspora',y:1990,c:'positioning'}],concepts:['routes not roots','new ethnicities']},
+          {name:'Paul Gilroy',match:75,trad:'Cultural studies',why:'The Black Atlantic as a shared culture forged across the ocean, not within one nation.',books:[{t:'The Black Atlantic',y:1993,c:'diasporic modernity'}],concepts:['double consciousness','planetary humanism']}
+        ]}
+    ],
+    missing:[
+      {label:'Disability Studies',color:PALETTE.blue,why:'Disabled people are pinned to two single stories — tragedy or inspiration — and rarely granted ordinary complexity.'},
+      {label:'Indigenous Standpoint',color:PALETTE.sand,why:'Settler nations narrate First Peoples through deficit and disappearance; standpoint theory insists they author their own.'},
+      {label:'Class & the Book Trade',color:PALETTE.green,why:'Who gets published is shaped by who can afford the years of unpaid time a book demands.'},
+      {label:'The Counter-Story Trap',color:PALETTE.rose,why:'A single uplifting story of the marginalised can flatten just as much as a hostile one.'}
+    ],
+    praxis:{
+      reflective:[
+        {t:'Name a group you only know through one narrative.',s:'Then go looking for the story that complicates it.'},
+        {t:'Whose pen writes the stories you live inside?',s:'List five about your own community you wish were widely heard.'}
+      ],
+      educational:[
+        {t:'Read Said, Orientalism (1978)',s:'The foundational account of how the powerful invent the people they describe.'},
+        {t:'Read Achebe, Things Fall Apart (1958)',s:'A continent narrated from within.'},
+        {t:'Watch / read Hall on Representation',s:'How meaning is made, not merely transmitted.'}
+      ],
+      community:[
+        {t:'Start a story-exchange circle',s:'Each member brings a “second story” of a group they’re often shown only once.'},
+        {t:'Audit a shared shelf',s:'Whose voices are present on your team / class / library shelf, and whose are missing?'}
+      ],
+      civic:[
+        {t:'Submit to school text-list reviews',s:'Diverse-author acquisitions are decided in dull committees that welcome public input.'},
+        {t:'Back your local library’s diverse collections',s:'Acquisition budgets respond to demonstrated demand.'}
+      ],
+      creative:[
+        {t:'Write the second story',s:'Take a person you’ve reduced to one narrative and write a day of their ordinary life.'},
+        {t:'Re-tell a familiar tale from the silent character',s:'Whose view did the canonical version omit?'}
+      ],
+      organising:[
+        {t:'Join or seed an #ownvoices / diverse-curriculum push',s:'Lawful, persistent advocacy changes what reaches classrooms.'},
+        {t:'Campaign for translated & local-language works',s:'Widen which languages a story is allowed to arrive in.'}
+      ],
+      personas:[
+        {n:'Paulo Freire',l:'dialogue',p:'Replace the “banking” of single stories with dialogue between equals who name the world together.'},
+        {n:'Edward Said',l:'the worldly critic',p:'Read against the grain; ask what every text assumes about who is centre and who is margin.'},
+        {n:'bell hooks',l:'engaged voice',p:'Move from silence to speech as the oppressed — talking back is a healing, political act.'},
+        {n:'Indigenous relationality',l:'responsibility',p:'Story carries obligation; ask who has the right and the duty to tell this one.'}
+      ]
+    }
+  },
+
+  /* ---------------------------------------------------------- */
+  robinson:{
+    yt:'iG9CE55wbtY',
+    title:'Do schools kill creativity?',
+    speaker:'Sir Ken Robinson',
+    sub:'TED · 2006 · 20 min · talk',
+    blurb:'“If you’re not prepared to be wrong, you’ll never come up with anything original — and by the time children are adults, most have lost that capacity.”',
+    analysis:{
+      happening:'A comic, humane case that mass schooling, built for industry, drills the willingness to be wrong out of children and ranks the arts beneath “useful” subjects.',
+      assumptions:['That creativity is innate and universal, then educated out of us.','That the purpose of school can be re-chosen rather than inherited.','That getting things wrong is the precondition of originality.'],
+      tensions:['“Everyone is creative” can erase how unequally creativity is resourced and rewarded.','The talk celebrates individual genius while saying little about the power that sorts winners from losers.','Charm and optimism may soften a critique that actually needs structural teeth.'],
+      absent:['Power & oppression — Freire’s pedagogy of liberation is missing.','Class — whose children can afford to “follow their passion”.','Disability justice — beyond a charming ADHD anecdote, no access politics.'],
+      questions:['What was I told I was “not the type” for — and who benefited from that verdict?','What is school actually for, if we got to choose again?','Who decided maths outranks dance, and in whose interest?']
+    },
+    echoes:[
+      {yr:'1800s',t:'Prussian schooling',p:'The template — bells, rows, ranks — built to produce sorted, governable workers.'},
+      {yr:'1944',t:'The 11-plus',p:'A single exam deciding a child’s entire future at age eleven.'},
+      {yr:'2001',t:'No Child Left Behind',p:'High-stakes testing narrowing the curriculum to what is countable.'},
+      {yr:'2008',t:'NAPLAN (Australia)',p:'National standardised testing — and the long argument over what it measures and misses.'}
+    ],
+    themes:[
+      {id:'industrial',label:'Schooling for Industry',color:PALETTE.amber,
+        emotion:['nostalgia','frustration'],rhetoric:['comic timing','historical framing'],
+        readings:[
+          {lens:'Critical / structural',color:PALETTE.amber,p:'Schools reproduce the class order — they sort labour and pass on advantage as if it were merit.'},
+          {lens:'Humanist-progressive',color:PALETTE.green,p:'Schooling suppresses an innate creativity; loosen the machine and the child unfolds.'},
+          {lens:'Conservative-realist',color:PALETTE.blue,p:'Knowledge and rigour are emancipatory; loose “creativity” talk can excuse low expectations for the poor.'}
+        ],
+        thinkers:[
+          {name:'Michel Foucault',match:91,trad:'Post-structuralism',why:'The school as a disciplinary institution — timetable, rank and exam producing docile bodies.',books:[{t:'Discipline and Punish',y:1975,c:'the examination'}],concepts:['disciplinary power','normalisation']},
+          {name:'Pierre Bourdieu',match:88,trad:'Sociology',why:'School rewards the cultural capital of the already-advantaged and calls it talent.',books:[{t:'Reproduction',y:1970,c:'cultural capital'}],concepts:['habitus','symbolic violence']},
+          {name:'Ivan Illich',match:80,trad:'Radical critique',why:'Confuses schooling with learning; proposes deschooling and convivial tools.',books:[{t:'Deschooling Society',y:1971,c:'institutional ritual'}],concepts:['hidden curriculum','conviviality']}
+        ]},
+      {id:'play',label:'Creativity, Play & Risk',color:PALETTE.green,
+        emotion:['delight','permission'],rhetoric:['anecdote','the Picasso line'],
+        readings:[
+          {lens:'Developmental',color:PALETTE.green,p:'Play is the leading edge of development — children think and grow a head taller in it.'},
+          {lens:'Flow / positive psych',color:PALETTE.blue,p:'Creativity flourishes in absorbed, autotelic states — schools rarely make room for them.'},
+          {lens:'Psychoanalytic',color:PALETTE.violet,p:'Play lives in a transitional space of safety; fear of being wrong collapses it.'}
+        ],
+        thinkers:[
+          {name:'Lev Vygotsky',match:90,trad:'Developmental psychology',why:'Play creates a zone where a child operates beyond their everyday self.',books:[{t:'Mind in Society',y:1978,c:'the zone of proximal development'}],concepts:['ZPD','play as development']},
+          {name:'M. Csikszentmihalyi',match:82,trad:'Positive psychology',why:'Names the absorbed “flow” that originality depends on.',books:[{t:'Flow',y:1990,c:'optimal experience'}],concepts:['flow','autotelic activity']},
+          {name:'D. W. Winnicott',match:76,trad:'Psychoanalysis',why:'Creativity needs a safe transitional space — and the freedom to make mistakes.',books:[{t:'Playing and Reality',y:1971,c:'the transitional space'}],concepts:['good-enough holding','true self']}
+        ]},
+      {id:'hierarchy',label:'The Hierarchy of Subjects',color:PALETTE.rose,
+        emotion:['indignation','advocacy'],rhetoric:['ranking the subjects','reductio'],
+        readings:[
+          {lens:'Egalitarian',color:PALETTE.rose,p:'Privileging maths and language over art enacts a value judgement about whose minds matter.'},
+          {lens:'Cultural-capital',color:PALETTE.amber,p:'The hierarchy mirrors the labour market and the tastes of the dominant class.'},
+          {lens:'Core-knowledge (counter)',color:PALETTE.blue,p:'A shared knowledge base is the great equaliser; the arts assume a security the poor lack first.'}
+        ],
+        thinkers:[
+          {name:'John Dewey',match:86,trad:'Pragmatist philosophy',why:'Education is growth and democratic experience, not preparation for a fixed slot.',books:[{t:'Democracy and Education',y:1916,c:'learning by doing'}],concepts:['experience','the whole child']},
+          {name:'Pierre Bourdieu',match:83,trad:'Sociology',why:'“Taste” and subject-status are how class reproduces itself through the curriculum.',books:[{t:'Distinction',y:1979,c:'taste as class'}],concepts:['cultural capital','distinction']},
+          {name:'E. D. Hirsch',match:70,trad:'Educational conservatism',why:'The dissenting voice: shared core knowledge, not self-expression, frees the disadvantaged.',books:[{t:'Cultural Literacy',y:1987,c:'core knowledge'}],concepts:['shared knowledge','the curriculum as equaliser']}
+        ]},
+      {id:'neuro',label:'Neurodiversity & Difference',color:PALETTE.teal,
+        emotion:['compassion','recognition'],rhetoric:['the Gillian Lynne story','reframing'],
+        readings:[
+          {lens:'Social model',color:PALETTE.teal,p:'It is the rigid environment, not the child, that disables — change the room, not the learner.'},
+          {lens:'Neurodiversity',color:PALETTE.green,p:'Different minds are natural variation with real strengths, not deficits to be corrected.'},
+          {lens:'Access-justice (caution)',color:PALETTE.rose,p:'“Everyone’s creative” can erase that some learners need concrete supports, not just permission.'}
+        ],
+        thinkers:[
+          {name:'Mike Oliver',match:88,trad:'Disability studies',why:'The social model relocates “the problem” from the body to a world built for some bodies.',books:[{t:'The Politics of Disablement',y:1990,c:'the social model'}],concepts:['social model','disabling barriers']},
+          {name:'Thomas Armstrong',match:81,trad:'Neurodiversity in education',why:'Frames learning difference as a spectrum of strengths schools routinely waste.',books:[{t:'Neurodiversity in the Classroom',y:2012,c:'strengths-based learning'}],concepts:['neurodiversity','niche construction']},
+          {name:'CAST / UDL',match:79,trad:'Universal Design for Learning',why:'Design the lesson for the edges first and the whole class benefits.',books:[{t:'UDL Guidelines',y:2011,c:'multiple means of engagement'}],concepts:['universal design','flexible pathways']}
+        ]},
+      {id:'measure',label:'Standardisation & Measurement',color:PALETTE.violet,
+        emotion:['concern','resolve'],rhetoric:['critique of testing','what gets counted'],
+        readings:[
+          {lens:'Critical',color:PALETTE.violet,p:'We have begun valuing what we can measure instead of measuring what we value.'},
+          {lens:'Governmental',color:PALETTE.amber,p:'The exam is a technique of power — it ranks, files and makes each child visible and comparable.'},
+          {lens:'Accountability (counter)',color:PALETTE.blue,p:'Without measurement, inequity hides; data is how we catch schools failing the poor.'}
+        ],
+        thinkers:[
+          {name:'Gert Biesta',match:84,trad:'Philosophy of education',why:'Warns of “learnification” — measurable outcomes crowding out the purpose of education.',books:[{t:'Good Education in an Age of Measurement',y:2010,c:'what we measure'}],concepts:['subjectification','the beautiful risk']},
+          {name:'Michel Foucault',match:80,trad:'Post-structuralism',why:'The examination fuses surveillance and judgement into a single ranking gaze.',books:[{t:'Discipline and Punish',y:1975,c:'the normalising judgement'}],concepts:['the examination','dossier of the self']},
+          {name:'Donald Campbell',match:68,trad:'Social science methodology',why:'Campbell’s Law: the more a metric is used to decide, the more it corrupts what it measures.',books:[{t:'Assessing the Impact…',y:1976,c:'metric corruption'}],concepts:['Campbell’s Law','perverse incentives']}
+        ]}
+    ],
+    missing:[
+      {label:'Paulo Freire',color:PALETTE.amber,why:'Robinson critiques creativity’s loss but not oppression — Freire reads schooling as a site of power, dialogue and liberation.'},
+      {label:'Indigenous & relational pedagogy',color:PALETTE.sand,why:'Learning as relationship to land, kin and community — not the unfolding of the individual self.'},
+      {label:'Class & material conditions',color:PALETTE.green,why:'Whose children can actually afford to “find their passion” when food and rent are unstable?'},
+      {label:'Disability justice',color:PALETTE.teal,why:'Beyond a charming anecdote: access intimacy, interdependence and who designs the room.'}
+    ],
+    praxis:{
+      reflective:[
+        {t:'Recover a “you’re not the type” moment.',s:'Who handed you that verdict, and what did it cost you to believe it?'},
+        {t:'Re-decide the purpose of school.',s:'If you could choose it from scratch, what is education actually for?'}
+      ],
+      educational:[
+        {t:'Read Freire, Pedagogy of the Oppressed (1968)',s:'The power analysis Robinson’s charm leaves out.'},
+        {t:'Read Biesta on measurement (2010)',s:'Why “what counts” quietly rewrites what schools value.'},
+        {t:'Work through the UDL Guidelines',s:'Design lessons for the edges and the middle comes along.'}
+      ],
+      community:[
+        {t:'Seed a maker / arts space',s:'A low-stakes place where being wrong is the point, not the penalty.'},
+        {t:'Run a strengths inventory',s:'With a class or team, map what each person is unusually good at — then build on it.'}
+      ],
+      civic:[
+        {t:'Make a submission on assessment reform',s:'Curriculum and testing reviews take public comment; few people send one.'},
+        {t:'Show up to school-board / P&C decisions',s:'Funding for arts and inclusion is decided locally and quietly.'}
+      ],
+      creative:[
+        {t:'Reclaim a dropped art form',s:'Return to the thing you were told you “gave up” and do it badly on purpose.'},
+        {t:'Redesign one lesson for delight',s:'Take a flat task and rebuild it so a child would choose to do it.'}
+      ],
+      organising:[
+        {t:'Back assessment-reform & inclusion campaigns',s:'Collective, lawful pressure shifts what systems reward.'},
+        {t:'Connect families & teachers across the gap',s:'Shared advocacy outlasts any single classroom.'}
+      ],
+      personas:[
+        {n:'Paulo Freire',l:'conscientização',p:'Teach so learners read the word and the world — dialogue, not deposit.'},
+        {n:'John Dewey',l:'democracy & growth',p:'Treat the classroom as a small democracy where doing precedes knowing.'},
+        {n:'Sir Ken Robinson',l:'the disposition',p:'Protect the willingness to be wrong; it is the seedbed of everything original.'},
+        {n:'Disability Justice',l:'access intimacy',p:'Design the room for interdependence first; access is a collective creative act.'}
+      ]
+    }
+  },
+
+  /* ---------------------------------------------------------- */
+  greta:{
+    yt:'TMrtLsQbaok',
+    title:'“How dare you” — UN Climate Action Summit',
+    speaker:'Greta Thunberg',
+    sub:'United Nations · 2019 · 5 min · speech',
+    blurb:'“You have stolen my dreams and my childhood with your empty words… We are in the beginning of a mass extinction, and all you can talk about is money and fairy tales of eternal economic growth.”',
+    analysis:{
+      happening:'A teenage activist confronts world leaders, charging that endless-growth economics and procedural delay are betraying her generation and the living world.',
+      assumptions:['That those alive now owe an enforceable duty to those not yet born.','That “eternal economic growth” on a finite planet is a contradiction, not a goal.','That moral clarity, spoken plainly, can move political power.'],
+      tensions:['Is this prophetic witness, or a moral panic that crowds out sober trade-offs?','Degrowth vs green-growth: rivals who both claim the science.','A Global-North voice speaking for a crisis already drowning the Global South.'],
+      absent:['Indigenous & Pacific frontline voices already living the loss.','Nuclear & techno-pragmatist paths to decarbonisation.','The labour and justice costs of degrowth itself.'],
+      questions:['What do I actually owe people I will never meet?','Whose childhood is already gone while we debate mine?','Is my hope a strategy, or an anaesthetic?']
+    },
+    echoes:[
+      {yr:'1962',t:'Carson, Silent Spring',p:'A lone, attacked voice naming an invisible, accumulating harm.'},
+      {yr:'1972',t:'The Limits to Growth',p:'The first system-model warning that exponential growth meets a finite world.'},
+      {yr:'1987',t:'Montreal Protocol',p:'Proof that coordinated global action on the atmosphere is actually possible.'},
+      {yr:'1903',t:'Suffragette disruption',p:'Young people using moral confrontation and tactics elders called “unreasonable”.'}
+    ],
+    themes:[
+      {id:'gen',label:'Intergenerational Justice',color:PALETTE.teal,
+        emotion:['grief','accusation'],rhetoric:['direct address','the stolen-childhood frame'],
+        readings:[
+          {lens:'Future-ethics',color:PALETTE.teal,p:'Our power over the future imposes an asymmetric duty — those who cannot answer back deserve more care, not less.'},
+          {lens:'Rawlsian',color:PALETTE.blue,p:'A just savings principle: behind a veil of ignorance we would not gamble unborn generations’ basics.'},
+          {lens:'Sceptical-economic',color:PALETTE.amber,p:'Discount the future and act now feels costly — yet discounting is itself a moral choice in disguise.'}
+        ],
+        thinkers:[
+          {name:'Hans Jonas',match:92,trad:'Ethics of technology',why:'Modern power over nature demands a new imperative of responsibility to the future.',books:[{t:'The Imperative of Responsibility',y:1979,c:'duty to the future'}],concepts:['the heuristic of fear','responsibility']},
+          {name:'John Rawls',match:84,trad:'Political philosophy',why:'Justice between generations as a “just savings” obligation chosen behind the veil.',books:[{t:'A Theory of Justice',y:1971,c:'just savings principle'}],concepts:['veil of ignorance','intergenerational fairness']},
+          {name:'Hannah Arendt',match:80,trad:'Political theory',why:'Each new birth is a fresh chance to remake the world — which the old must not foreclose.',books:[{t:'The Human Condition',y:1958,c:'natality'}],concepts:['natality','the world we share']}
+        ]},
+      {id:'panic',label:'Moral Panic & Rhetoric',color:PALETTE.rose,
+        emotion:['fury','urgency'],rhetoric:['pathos','prophetic denunciation'],
+        readings:[
+          {lens:'Prophetic',color:PALETTE.rose,p:'This is witness, not panic — naming an emergency the powerful are trained not to feel.'},
+          {lens:'Moral-panic theory',color:PALETTE.amber,p:'Intense emotion can outrun evidence and crowd out the slow work of trade-offs and institutions.'},
+          {lens:'Rhetorical',color:PALETTE.violet,p:'Pathos without phronesis persuades but doesn’t govern — anger must convert into durable design.'}
+        ],
+        thinkers:[
+          {name:'Stanley Cohen',match:83,trad:'Sociology',why:'Maps how societies amplify some threats into panics — and bury others in silence.',books:[{t:'Folk Devils and Moral Panics',y:1972,c:'amplification'}],concepts:['moral panic','denial']},
+          {name:'Hannah Arendt',match:78,trad:'Political theory',why:'Warns when raw emotion floods the public realm it can drown deliberation.',books:[{t:'On Revolution',y:1963,c:'the politics of pity'}],concepts:['the social vs the political','compassion in politics']},
+          {name:'Aristotle',match:72,trad:'Classical rhetoric',why:'Persuasion needs pathos, ethos and logos in balance — and practical wisdom to steer it.',books:[{t:'Rhetoric',y:-330,c:'the modes of proof'}],concepts:['pathos / ethos / logos','phronesis']}
+        ]},
+      {id:'capital',label:'Climate & Capitalism',color:PALETTE.amber,
+        emotion:['anger','conviction'],rhetoric:['“fairy tales of growth”','indictment'],
+        readings:[
+          {lens:'Eco-socialist',color:PALETTE.amber,p:'A growth-compelled system is the root cause; without changing it, technology just accelerates the damage.'},
+          {lens:'Eco-modernist',color:PALETTE.blue,p:'Markets plus clean technology can decouple prosperity from emissions — growth is the cure, not the disease.'},
+          {lens:'Polanyian',color:PALETTE.green,p:'Treating nature as a mere commodity was always a fiction; society will move to re-embed and protect it.'}
+        ],
+        thinkers:[
+          {name:'Karl Marx',match:85,trad:'Political economy',why:'Capital’s endless accumulation opens a “metabolic rift” between humanity and the earth it depends on.',books:[{t:'Capital, Vol. 1',y:1867,c:'metabolic rift'}],concepts:['accumulation','metabolic rift']},
+          {name:'Karl Polanyi',match:83,trad:'Economic history',why:'Land, labour and nature are “fictitious commodities”; markets that forget this provoke a counter-movement.',books:[{t:'The Great Transformation',y:1944,c:'fictitious commodities'}],concepts:['embeddedness','the double movement']},
+          {name:'Jason Hickel',match:81,trad:'Economic anthropology',why:'Argues planned degrowth in the rich world is the honest path within planetary limits.',books:[{t:'Less is More',y:2020,c:'degrowth'}],concepts:['degrowth','planetary boundaries']}
+        ]},
+      {id:'hope',label:'Hope vs Fear',color:PALETTE.green,
+        emotion:['despair','defiance'],rhetoric:['warning','refusal of false comfort'],
+        readings:[
+          {lens:'Principle of hope',color:PALETTE.green,p:'Hope is not optimism but a disciplined orientation to the “not-yet” — it makes new futures thinkable.'},
+          {lens:'Active hope',color:PALETTE.teal,p:'Despair, fully felt, can be metabolised into sustained action rather than paralysis.'},
+          {lens:'Tragic realism',color:PALETTE.amber,p:'Some loss is already locked in; honesty about it, not cheerful denial, is the start of dignity.'}
+        ],
+        thinkers:[
+          {name:'Ernst Bloch',match:80,trad:'Marxist philosophy',why:'Hope as the principle that keeps the unfinished future open and demanding.',books:[{t:'The Principle of Hope',y:1954,c:'the not-yet'}],concepts:['the not-yet','concrete utopia']},
+          {name:'Joanna Macy',match:78,trad:'Ecophilosophy',why:'“The work that reconnects” turns grief for the world into fuel for action.',books:[{t:'Active Hope',y:2012,c:'the work that reconnects'}],concepts:['active hope','despair work']},
+          {name:'Roy Scranton',match:71,trad:'Anthropocene thought',why:'The bracing counter-voice: learn to face civilisational death without consoling lies.',books:[{t:'Learning to Die in the Anthropocene',y:2015,c:'tragic realism'}],concepts:['mortality of civilisations','dignified facing']}
+        ]},
+      {id:'voice',label:'Youth, Voice & Authority',color:PALETTE.violet,
+        emotion:['defiance','exposure'],rhetoric:['the child who speaks','reversal of authority'],
+        readings:[
+          {lens:'Rancièrean',color:PALETTE.violet,p:'Politics begins when “the part that has no part” forces itself into a conversation that excluded it.'},
+          {lens:'Arendtian',color:PALETTE.teal,p:'To act in public is to begin something new and appear among others as a distinct someone.'},
+          {lens:'Paternalist (counter)',color:PALETTE.blue,p:'Moral authority is not expertise; passion may move us but policy needs more than a witness.'}
+        ],
+        thinkers:[
+          {name:'Jacques Rancière',match:82,trad:'Political philosophy',why:'Equality is enacted, not granted — by those told they have no standing to speak.',books:[{t:'Disagreement',y:1995,c:'the part of no part'}],concepts:['dissensus','the distribution of the sensible']},
+          {name:'Hannah Arendt',match:79,trad:'Political theory',why:'Action and speech are how a newcomer inserts themselves into the common world.',books:[{t:'The Human Condition',y:1958,c:'action & appearance'}],concepts:['action','the space of appearance']},
+          {name:'Iris Marion Young',match:73,trad:'Political theory',why:'Asks whose voices count as “reasonable” and how that gate-keeps democracy.',books:[{t:'Inclusion and Democracy',y:2000,c:'communicative democracy'}],concepts:['the politics of voice','structural injustice']}
+        ]}
+    ],
+    missing:[
+      {label:'Indigenous & Pacific frontline',color:PALETTE.sand,why:'The crisis is already lived, not feared, by those whose lands and islands are going first — and who hold knowledges of reciprocity.'},
+      {label:'Techno-pragmatists',color:PALETTE.blue,why:'Nuclear, carbon removal and abundance arguments that take the science seriously while rejecting degrowth.'},
+      {label:'Just-transition labour',color:PALETTE.amber,why:'Workers in carbon industries whose livelihoods any rapid shift must carry, not discard.'},
+      {label:'More-than-human ethics',color:PALETTE.green,why:'The standing of rivers, species and ecosystems as kin and claimants, not “resources”.'}
+    ],
+    praxis:{
+      reflective:[
+        {t:'State your honest relationship to the future.',s:'Not what you should feel — what you actually do, when no one is watching.'},
+        {t:'Test your hope.',s:'Is it moving you to act, or quietly excusing you from acting?'}
+      ],
+      educational:[
+        {t:'Read Hickel, Less is More (2020) and an eco-modernist reply',s:'Hold the degrowth / green-growth argument in genuine tension.'},
+        {t:'Read Polanyi, The Great Transformation (1944)',s:'Why markets that forget nature provoke their own backlash.'},
+        {t:'Seek out a Pacific / First Nations climate voice',s:'Decentre the Northern frame of the whole debate.'}
+      ],
+      community:[
+        {t:'Join a local transition / climate group',s:'Move from spectator-grief to shared, situated work.'},
+        {t:'Host a “despair-to-action” circle',s:'Joanna Macy’s structure: feel it, then convert it.'}
+      ],
+      civic:[
+        {t:'Make a submission to a climate consultation',s:'Targets, transition plans and assemblies are decided in writing few people send.'},
+        {t:'Push for / join a citizens’ assembly',s:'Sortition cools panic into deliberation without losing urgency.'}
+      ],
+      creative:[
+        {t:'Write or make climate fiction',s:'Art can hold grief and imagine the “not-yet” that policy can’t yet picture.'},
+        {t:'Document one place you love, closely',s:'Attention is the root of any ethics of care.'}
+      ],
+      organising:[
+        {t:'Back lawful campaigns & divestment',s:'Sustained collective pressure, not one speech, moves institutions.'},
+        {t:'Centre just transition & mutual aid',s:'Make sure the people who bear the cost help write the plan.'}
+      ],
+      personas:[
+        {n:'Hannah Arendt',l:'public action',p:'Step into the common world and begin something — appear, with others, and act.'},
+        {n:'Joanna Macy',l:'active hope',p:'Let the grief in; it is love for the world, and it can become your stamina.'},
+        {n:'Albert Camus',l:'revolt without nihilism',p:'Refuse both despair and false comfort — act with lucid, stubborn dignity anyway.'},
+        {n:'Indigenous relationality',l:'reciprocity',p:'Treat land and the more-than-human as kin to whom you owe care, not stock to spend.'}
+      ]
+    }
+  }
+};
+
+const ORDER = ['hanson','adichie','robinson','greta'];
+
+/* ---------------- starfield ---------------- */
+(function(){
+  const c=document.getElementById('stars'),x=c.getContext('2d');let stars=[];
+  function size(){c.width=innerWidth;c.height=innerHeight;stars=[];
+    const n=Math.min(220,innerWidth*innerHeight/9000);
+    for(let i=0;i<n;i++)stars.push({x:Math.random()*c.width,y:Math.random()*c.height,
+      r:Math.random()*1.3+.2,a:Math.random(),s:Math.random()*.02+.004});}
+  function draw(){x.clearRect(0,0,c.width,c.height);
+    for(const st of stars){st.a+=st.s;const tw=.4+Math.abs(Math.sin(st.a))*.6;
+      x.globalAlpha=tw;x.fillStyle='#cdd9ff';x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}
+    x.globalAlpha=1;requestAnimationFrame(draw);}
+  size();draw();addEventListener('resize',size);
+})();
+
+/* ---------------- state ---------------- */
+let cur='hanson', focusTheme=null, focusThinker=null, revealMissing=false;
+let praxisMode='reflective';
+const sky=document.getElementById('sky');
+let W=0,Hh=0,cx=0,cy=0,t0=performance.now();
+
+/* atlas persistence */
+const ATLAS_KEY='mediaConstellations.atlas.v1';
+function loadAtlas(){try{return JSON.parse(localStorage.getItem(ATLAS_KEY))||{themes:{},thinkers:{},media:{}}}catch(e){return{themes:{},thinkers:{},media:{}}}}
+function saveAtlas(a){try{localStorage.setItem(ATLAS_KEY,JSON.stringify(a))}catch(e){}}
+function note(kind,label){const a=loadAtlas();a[kind][label]=(a[kind][label]||0)+1;saveAtlas(a);}
+
+/* ---------------- node geometry ---------------- */
+let nodes=[]; // {kind, ref, baseAngle, radius, speed, size, color, parent}
+function buildNodes(){
+  const m=MEDIA[cur];
+  nodes=[];
+  nodes.push({kind:'center',ref:m,x:0,y:0});
+  const n=m.themes.length;
+  m.themes.forEach((th,i)=>{
+    nodes.push({kind:'theme',ref:th,baseAngle:(i/n)*Math.PI*2,
+      radius:0,targetRadius:158+(i%2?20:0),speed:0.045+(i%3)*0.012,size:9,color:th.color});
+  });
+}
+function rebuildThinkers(){
+  nodes=nodes.filter(nd=>nd.kind==='center'||nd.kind==='theme'||nd.kind==='missing');
+  if(focusTheme){
+    const th=MEDIA[cur].themes.find(t=>t.id===focusTheme);
+    if(th){const k=th.thinkers.length;
+      th.thinkers.forEach((tk,i)=>{
+        nodes.push({kind:'thinker',ref:tk,parent:focusTheme,
+          baseAngle:(i/k)*Math.PI*2,radius:0,targetRadius:78,speed:0.09+(i%2?0.03:0),size:6,color:th.color});
+      });
+    }
+  }
+}
+function rebuildMissing(){
+  nodes=nodes.filter(nd=>nd.kind!=='missing');
+  if(revealMissing){
+    const ms=MEDIA[cur].missing,k=ms.length;
+    ms.forEach((mm,i)=>{
+      nodes.push({kind:'missing',ref:mm,baseAngle:(i/k)*Math.PI*2+0.3,
+        radius:0,targetRadius:250+(i%2?16:0),speed:0.03,size:7,color:mm.color});
+    });
+  }
+}
+
+/* ---------------- render loop ---------------- */
+function frame(now){
+  const t=(now-t0)/1000;
+  // resize svg coords
+  const r=sky.getBoundingClientRect();W=r.width;Hh=r.height;cx=W/2;cy=Hh/2-6;
+  // compute positions
+  const pos={};
+  for(const nd of nodes){
+    if(nd.kind==='center'){nd.x=cx;nd.y=cy;continue;}
+    if(nd.radius<nd.targetRadius)nd.radius=Math.min(nd.targetRadius,nd.radius+ (nd.targetRadius)*0.08+2);
+    let ox=cx,oy=cy;
+    if(nd.kind==='thinker'){const p=nodes.find(z=>z.kind==='theme'&&z.ref.id===nd.parent);if(p){ox=p.x;oy=p.y;}}
+    const ang=nd.baseAngle+t*nd.speed;
+    nd.x=ox+Math.cos(ang)*nd.radius;
+    nd.y=oy+Math.sin(ang)*nd.radius;
+  }
+  paint();
+  requestAnimationFrame(frame);
+}
+
+function el(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+
+function paint(){
+  sky.innerHTML='';
+  const defs=el('defs',{});
+  defs.innerHTML=`<filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+  sky.appendChild(defs);
+  const center=nodes.find(n=>n.kind==='center');
+  const themeDimmed = !!focusTheme;
+  // edges first
+  for(const nd of nodes){
+    if(nd.kind==='theme'){
+      const live=focusTheme===nd.ref.id;
+      const e=el('line',{x1:center.x,y1:center.y,x2:nd.x,y2:nd.y,class:'edge'+(live?' live':'')});
+      if(themeDimmed&&!live)e.setAttribute('opacity','0.2');
+      sky.appendChild(e);
+    }
+    if(nd.kind==='thinker'){
+      const p=nodes.find(z=>z.kind==='theme'&&z.ref.id===nd.parent);
+      if(p)sky.appendChild(el('line',{x1:p.x,y1:p.y,x2:nd.x,y2:nd.y,class:'edge live'}));
+    }
+    if(nd.kind==='missing'){
+      sky.appendChild(el('line',{x1:center.x,y1:center.y,x2:nd.x,y2:nd.y,class:'edge missing'}));
+    }
+  }
+  // nodes
+  for(const nd of nodes){
+    const g=el('g',{class:'node '+nd.kind});
+    if(themeDimmed&&nd.kind==='theme'&&nd.ref.id!==focusTheme)g.setAttribute('class','node theme dimmed');
+    if(nd.kind==='center'){
+      g.appendChild(el('circle',{cx:nd.x,cy:nd.y,r:30,fill:'rgba(143,182,255,.08)',stroke:'rgba(143,182,255,.4)','stroke-width':1}));
+      g.appendChild(el('circle',{cx:nd.x,cy:nd.y,r:18,fill:'rgba(143,182,255,.16)'}));
+      const core=el('circle',{cx:nd.x,cy:nd.y,r:13,fill:'#dfe7ff',filter:'url(#glow)'});g.appendChild(core);
+      const words=(nd.ref.title.length>34?nd.ref.title.slice(0,32)+'…':nd.ref.title).split(' ');
+      let line='',lines=[];words.forEach(w=>{if((line+w).length>18){lines.push(line.trim());line=w+' ';}else line+=w+' ';});lines.push(line.trim());
+      lines.forEach((ln,i)=>{const tx=el('text',{x:nd.x,y:nd.y+44+i*15});tx.textContent=ln;g.appendChild(tx);});
+      sky.appendChild(g);continue;
+    }
+    const isMissing=nd.kind==='missing';
+    const ring=el('circle',{cx:nd.x,cy:nd.y,r:nd.size+6,class:'ring',stroke:nd.color,opacity:isMissing?0.7:0.5});
+    if(isMissing)ring.setAttribute('stroke-dasharray','2 4');
+    g.appendChild(ring);
+    const dot=el('circle',{cx:nd.x,cy:nd.y,r:nd.size,fill:nd.color,filter:'url(#glow)'});
+    if(isMissing){dot.setAttribute('fill','none');dot.setAttribute('stroke',nd.color);dot.setAttribute('stroke-width',2);}
+    g.appendChild(dot);
+    if(nd.kind==='theme'){
+      const tx=el('text',{x:nd.x,y:nd.y-nd.size-9});tx.textContent=nd.ref.label;g.appendChild(tx);
+    } else if(nd.kind==='thinker'){
+      const tx=el('text',{x:nd.x,y:nd.y-nd.size-8});tx.textContent=nd.ref.name;g.appendChild(tx);
+      const mt=el('text',{x:nd.x,y:nd.y+nd.size+14,class:'match'});mt.textContent=nd.ref.match+'%';g.appendChild(mt);
+    } else if(nd.kind==='missing'){
+      const tx=el('text',{x:nd.x,y:nd.y-nd.size-9});tx.textContent='+ '+nd.ref.label;g.appendChild(tx);
+    }
+    g.style.cursor='pointer';
+    g.addEventListener('click',()=>onNodeClick(nd));
+    sky.appendChild(g);
+  }
+}
+
+/* ---------------- interaction ---------------- */
+function onNodeClick(nd){
+  if(nd.kind==='center'){focusTheme=null;focusThinker=null;rebuildThinkers();renderRail();return;}
+  if(nd.kind==='theme'){
+    focusTheme=(focusTheme===nd.ref.id)?null:nd.ref.id;
+    focusThinker=null;
+    if(focusTheme)note('themes',nd.ref.label);
+    rebuildThinkers();renderRail();
+    document.getElementById('hint').textContent = focusTheme
+      ? 'Thinkers now orbit this theme · tap one to read its lens · tap the centre to zoom out'
+      : 'Tap a glowing theme to open its thinkers · tap a thinker to read the lens';
+    return;
+  }
+  if(nd.kind==='thinker'){focusThinker=nd.ref;note('thinkers',nd.ref.name);renderThinker(nd.ref);return;}
+  if(nd.kind==='missing'){renderMissing(nd.ref);return;}
+}
+
+/* ---------------- right rail ---------------- */
+const rail=document.getElementById('rail');
+function renderRail(){
+  const m=MEDIA[cur];
+  if(focusThinker){renderThinker(focusThinker);return;}
+  if(focusTheme){
+    const th=m.themes.find(t=>t.id===focusTheme);
+    rail.innerHTML=`
+      <div class="backlink" onclick="zoomOut()">‹ back to the whole constellation</div>
+      <div class="panel-title" style="color:${th.color}">${th.label}</div>
+      <div style="margin:6px 0 2px">${th.emotion.map(e=>`<span class="tag emo">${e}</span>`).join('')}
+        ${th.rhetoric.map(r=>`<span class="tag rhet">${r}</span>`).join('')}</div>
+      <div class="seclabel" style="margin-top:18px">The system disagrees with itself</div>
+      ${th.readings.map(r=>`<div class="reading"><div class="lens" style="color:${r.color}">${r.lens} reading</div><p>${r.p}</p></div>`).join('')}
+      <div class="seclabel">Thinkers in this theme</div>
+      ${th.thinkers.map(tk=>`<div class="book" style="cursor:pointer" onclick="openThinker('${cur}','${th.id}','${tk.name.replace(/'/g,"\\'")}')">
+        <span class="bk" style="color:${th.color}">●</span>
+        <div><b>${tk.name}</b> <span style="color:var(--faint)">· ${tk.match}%</span><br><span class="bc">${tk.trad}</span></div></div>`).join('')}
+    `;
+  } else {
+    const a=m.analysis;
+    rail.innerHTML=`
+      <div class="panel-title">Multi-perspective analysis</div>
+      <div class="qa"><h4>What is happening?</h4><p>${a.happening}</p></div>
+      <div class="qa"><h4>What assumptions are at work?</h4><ul>${a.assumptions.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="qa"><h4>What tensions live inside it?</h4><ul>${a.tensions.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="qa"><h4>What perspectives are absent?</h4><ul>${a.absent.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="qa"><h4>What questions should we ask?</h4><ul>${a.questions.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div style="color:var(--faint);font-size:12px;margin-top:14px">Tap a theme in the constellation to open its competing readings and thinkers.</div>
+    `;
+  }
+}
+function renderThinker(tk){
+  const th=MEDIA[cur].themes.find(t=>t.id===focusTheme)||MEDIA[cur].themes.find(t=>t.thinkers.includes(tk));
+  const col=th?th.color:'#8fb6ff';
+  rail.innerHTML=`
+    <div class="backlink" onclick="backToTheme()">‹ back to ${th?th.label:'theme'}</div>
+    <div class="thinker-card">
+      <div class="name">${tk.name}</div>
+      <div class="trad">${tk.trad}</div>
+      <div class="matchbar"><i style="width:${tk.match}%"></i></div>
+      <div style="color:var(--dim);font-size:12px;margin-top:-4px">${tk.match}% relevance to this media</div>
+      <div class="qa"><h4>Why this thinker, here?</h4><p>${tk.why}</p></div>
+      <div class="seclabel">Read into the orbit</div>
+      ${tk.books.map(b=>`<div class="book"><span class="bk">▸</span><div><span class="bk">${b.t}</span> <span style="color:var(--faint)">${b.y<0?Math.abs(b.y)+' BCE':b.y}</span><br><span class="bc">${b.c}</span></div></div>`).join('')}
+      <div class="seclabel">Concepts orbiting</div>
+      <div>${tk.concepts.map(c=>`<span class="tag">${c}</span>`).join('')}</div>
+    </div>`;
+}
+function renderMissing(mm){
+  rail.innerHTML=`
+    <div class="backlink" onclick="renderRail()">‹ back</div>
+    <div class="panel-title" style="color:${mm.color}">+ ${mm.label}</div>
+    <div class="seclabel" style="margin-top:14px">A perspective the media didn’t consider</div>
+    <p style="font-size:14px;color:var(--ink)">${mm.why}</p>
+    <div style="color:var(--faint);font-size:12px;margin-top:16px">This is the soul of the tool: not what to think, but how many more ways there are to think it.</div>`;
+}
+window.zoomOut=function(){focusTheme=null;focusThinker=null;rebuildThinkers();renderRail();
+  document.getElementById('hint').textContent='Tap a glowing theme to open its thinkers · tap a thinker to read the lens';};
+window.backToTheme=function(){focusThinker=null;renderRail();};
+window.openThinker=function(mk,thid,name){focusTheme=thid;const tk=MEDIA[mk].themes.find(t=>t.id===thid).thinkers.find(t=>t.name===name);
+  focusThinker=tk;note('thinkers',name);rebuildThinkers();renderThinker(tk);};
+
+/* ---------------- praxis dock ---------------- */
+function renderPraxis(){
+  const m=MEDIA[cur];const list=m.praxis[praxisMode];
+  document.getElementById('praxisList').innerHTML=list.map(p=>`<li>${p.t}<small>${p.s}</small></li>`).join('');
+  document.getElementById('personas').innerHTML=m.praxis.personas.map(p=>
+    `<div class="persona"><b>${p.n}</b><span class="pl">${p.l}</span><p>${p.p}</p></div>`).join('');
+}
+document.querySelectorAll('.ptab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.ptab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');praxisMode=b.dataset.mode;renderPraxis();}));
+document.getElementById('dockToggle').addEventListener('click',function(){
+  const d=document.getElementById('dock');d.classList.toggle('collapsed');
+  this.textContent=d.classList.contains('collapsed')?'Show ▴':'Hide ▾';});
+
+/* ---------------- left meta ---------------- */
+function renderMeta(){
+  const m=MEDIA[cur];
+  document.getElementById('player').innerHTML=
+    `<iframe src="https://www.youtube.com/embed/${m.yt}?rel=0" title="${m.title}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+  document.getElementById('meta').innerHTML=
+    `<h2>${m.title}</h2><div class="by">${m.speaker}</div><div class="sub">${m.sub}</div>`;
+  document.getElementById('blurb').textContent=m.blurb;
+  document.getElementById('echoes').innerHTML=
+    `<div class="seclabel">Historical echoes — resonance, not equivalence</div>`+
+    m.echoes.map(e=>`<div class="echo"><span class="yr">${e.yr}</span><p><b>${e.t}.</b> ${e.p}</p></div>`).join('');
+}
+
+/* ---------------- chips ---------------- */
+function renderChips(){
+  document.getElementById('chips').innerHTML=ORDER.map(k=>
+    `<div class="chip ${k===cur?'active':''}" data-k="${k}">${MEDIA[k].speaker.split(' ').slice(-1)[0]}</div>`).join('');
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>load(c.dataset.k)));
+}
+
+/* ---------------- load a media ---------------- */
+function load(key){
+  cur=key;focusTheme=null;focusThinker=null;revealMissing=false;
+  document.getElementById('revealBtn').classList.remove('on');
+  document.getElementById('url').value='https://youtu.be/'+MEDIA[key].yt;
+  const a=loadAtlas();a.media[MEDIA[key].title]=(a.media[MEDIA[key].title]||0)+1;saveAtlas(a);
+  buildNodes();rebuildThinkers();rebuildMissing();
+  renderChips();renderMeta();renderRail();renderPraxis();
+}
+
+/* ---------------- reveal button ---------------- */
+document.getElementById('revealBtn').addEventListener('click',function(){
+  revealMissing=!revealMissing;this.classList.toggle('on',revealMissing);
+  rebuildMissing();
+  if(revealMissing){toast(`<b>${MEDIA[cur].missing.length} perspectives</b> the media didn’t consider have entered the constellation — the dashed nodes at the edge. Tap one.`);}
+});
+
+/* ---------------- url bar ---------------- */
+function parseYT(u){const m=u.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);return m?m[1]:null;}
+document.getElementById('mapit').addEventListener('click',tryUrl);
+document.getElementById('url').addEventListener('keydown',e=>{if(e.key==='Enter')tryUrl();});
+function tryUrl(){
+  const id=parseYT(document.getElementById('url').value.trim());
+  if(!id){toast('That doesn’t look like a YouTube link yet. Try one of the curated talks below.');return;}
+  const key=ORDER.find(k=>MEDIA[k].yt===id);
+  if(key){load(key);toast('Constellation loaded.');}
+  else toast('This one isn’t curated yet — live AI mapping is the next layer. For now, explore the three hand-built constellations in the chips above. <b>Their depth is the bar live mode has to clear.</b>');
+}
+
+/* ---------------- atlas overlay ---------------- */
+function renderAtlas(){
+  const a=loadAtlas();const body=document.getElementById('atlasBody');
+  const th=Object.entries(a.themes).sort((x,y)=>y[1]-x[1]);
+  const tk=Object.entries(a.thinkers).sort((x,y)=>y[1]-x[1]);
+  const md=Object.entries(a.media).sort((x,y)=>y[1]-x[1]);
+  if(!th.length&&!tk.length){body.innerHTML=`<div class="empty">Your atlas is still dark. Open some themes and thinkers and they’ll begin to accumulate here — a record of where your attention keeps going.</div>`;return;}
+  const max=(arr)=>Math.max(...arr.map(e=>e[1]),1);
+  const bars=(arr,m)=>`<div class="bars">${arr.slice(0,8).map(([k,v])=>
+    `<div><div class="row"><span>${k}</span><span>${v}×</span></div><div class="b"><i style="width:${v/m*100}%"></i></div></div>`).join('')}</div>`;
+  body.innerHTML=
+    (th.length?`<div class="seclabel">Themes your attention returns to</div>${bars(th,max(th))}`:'')+
+    (tk.length?`<div class="seclabel" style="margin-top:18px">Thinkers you keep opening</div>${bars(tk,max(tk))}`:'')+
+    (md.length?`<div class="seclabel" style="margin-top:18px">Media visited</div>${bars(md,max(md))}`:'');
+}
+document.getElementById('atlasBtn').addEventListener('click',()=>{renderAtlas();document.getElementById('atlasOverlay').classList.add('on');});
+document.getElementById('atlasClose').addEventListener('click',()=>document.getElementById('atlasOverlay').classList.remove('on'));
+document.getElementById('atlasOverlay').addEventListener('click',e=>{if(e.target.id==='atlasOverlay')e.currentTarget.classList.remove('on');});
+
+/* ---------------- toast ---------------- */
+let toastTimer=null;
+function toast(html){const t=document.getElementById('toast');t.innerHTML=html;t.classList.add('on');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),5200);}
+
+/* ---------------- go ---------------- */
+load('hanson');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
