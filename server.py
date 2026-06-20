@@ -31,6 +31,8 @@ app = Flask(__name__, static_folder=None)
 # set CONSTELLATION_MODEL=haiku to conserve your Max usage.
 MODEL = os.environ.get("CONSTELLATION_MODEL", "sonnet")
 MAX_TRANSCRIPT_WORDS = 14000
+CACHE_DIR = HERE / "cache"
+CACHE_DIR.mkdir(exist_ok=True)
 
 # Palette the front-end understands (assigned here so Claude focuses on content).
 PALETTE = ["#46d6c4", "#b48bff", "#ffc06a", "#ff7fa8", "#7ce0a0", "#6fa8ff", "#e7c98a"]
@@ -278,9 +280,17 @@ def analyze():
     data = request.get_json(force=True) or {}
     url = (data.get("url") or "").strip()
     pasted = (data.get("transcript") or "").strip()
+    force = bool(data.get("force"))
     vid = data.get("videoId") or video_id(url)
     if not vid:
         return jsonify(ok=False, error="That doesn't look like a YouTube link."), 400
+
+    cache_file = CACHE_DIR / f"{vid}.json"
+    if cache_file.exists() and not force and not pasted:
+        try:
+            return jsonify(ok=True, cached=True, constellation=json.loads(cache_file.read_text()))
+        except Exception as e:
+            print(f"[cache] read failed: {e}", file=sys.stderr)
 
     meta = fetch_meta(vid)
     transcript = clean(pasted) if pasted else fetch_transcript(vid)
@@ -306,6 +316,10 @@ def analyze():
 
     constellation["yt"] = vid
     constellation.setdefault("speaker", meta["uploader"] or "")
+    try:
+        cache_file.write_text(json.dumps(constellation, indent=2))
+    except Exception as e:
+        print(f"[cache] write failed: {e}", file=sys.stderr)
     return jsonify(ok=True, constellation=constellation, model=MODEL)
 
 

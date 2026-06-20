@@ -232,6 +232,7 @@
       <input id="url" placeholder="Paste a YouTube link and press Map it…" />
       <button id="mapit">Map it</button>
     </div>
+    <button class="ghostbtn" id="remapBtn" hidden title="Generate a fresh constellation (ignores the cache)">↻ Re-map</button>
     <button class="ghostbtn" id="atlasBtn">✦ Your Atlas</button>
   </header>
 
@@ -338,7 +339,7 @@ const PALETTE={teal:'#46d6c4',violet:'#b48bff',amber:'#ffc06a',rose:'#ff7fa8',gr
 /* ---- state ---- */
 let DATA=null, focusTheme=null, focusThinker=null, revealMissing=false, praxisMode='reflective', hasData=false;
 const sky=document.getElementById('sky');
-let W=0,Hh=0,cx=0,cy=0,t0=performance.now(),nodes=[];
+let W=0,Hh=0,cx=0,cy=0,t0=performance.now(),nodes=[],edges=[];
 
 /* ---- atlas persistence ---- */
 const ATLAS_KEY='mediaConstellations.atlas.v1';
@@ -360,12 +361,14 @@ function rebuildThinkers(){
   if(focusTheme){const th=DATA.themes.find(t=>t.id===focusTheme);
     if(th){const k=th.thinkers.length;th.thinkers.forEach((tk,i)=>nodes.push({kind:'thinker',ref:tk,parent:focusTheme,
       baseAngle:(i/k)*Math.PI*2,radius:0,targetRadius:78,speed:0.09+(i%2?0.03:0),size:6,color:th.color}));}}
+  if(hasData)renderStructure();
 }
 function rebuildMissing(){
   nodes=nodes.filter(nd=>nd.kind!=='missing');
   if(revealMissing&&DATA.missing){const ms=DATA.missing,k=ms.length;
     ms.forEach((mm,i)=>nodes.push({kind:'missing',ref:mm,baseAngle:(i/k)*Math.PI*2+0.3,
       radius:0,targetRadius:250+(i%2?16:0),speed:0.03,size:7,color:mm.color}));}
+  if(hasData)renderStructure();
 }
 
 /* ---- render loop ---- */
@@ -380,52 +383,67 @@ function frame(now){
     const ang=nd.baseAngle+t*nd.speed;
     nd.x=ox+Math.cos(ang)*nd.radius;nd.y=oy+Math.sin(ang)*nd.radius;
   }
-  if(hasData)paint();
+  if(hasData)tick();
   requestAnimationFrame(frame);
 }
 function el(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
 
-function paint(){
-  sky.innerHTML='';
+/* Build the SVG ONCE per structural change. Each node is a <g> drawn at local
+   (0,0) and positioned via transform each frame, so click targets persist. */
+function renderStructure(){
+  sky.innerHTML='';edges=[];
   const defs=el('defs',{});
   defs.innerHTML=`<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
   sky.appendChild(defs);
   const center=nodes.find(n=>n.kind==='center');if(!center)return;
   const themeDimmed=!!focusTheme;
+  // edges (endpoints updated each frame in tick)
   for(const nd of nodes){
     if(nd.kind==='theme'){const live=focusTheme===nd.ref.id;
-      const e=el('line',{x1:center.x,y1:center.y,x2:nd.x,y2:nd.y,class:'edge'+(live?' live':'')});
-      if(themeDimmed&&!live)e.setAttribute('opacity','0.2');sky.appendChild(e);}
-    if(nd.kind==='thinker'){const p=nodes.find(z=>z.kind==='theme'&&z.ref.id===nd.parent);
-      if(p)sky.appendChild(el('line',{x1:p.x,y1:p.y,x2:nd.x,y2:nd.y,class:'edge live'}));}
-    if(nd.kind==='missing')sky.appendChild(el('line',{x1:center.x,y1:center.y,x2:nd.x,y2:nd.y,class:'edge missing'}));
+      const e=el('line',{class:'edge'+(live?' live':'')});
+      if(themeDimmed&&!live)e.setAttribute('opacity','0.2');
+      sky.appendChild(e);edges.push({el:e,a:center,b:nd});}
+    else if(nd.kind==='thinker'){const p=nodes.find(z=>z.kind==='theme'&&z.ref.id===nd.parent);
+      if(p){const e=el('line',{class:'edge live'});sky.appendChild(e);edges.push({el:e,a:p,b:nd});}}
+    else if(nd.kind==='missing'){const e=el('line',{class:'edge missing'});sky.appendChild(e);edges.push({el:e,a:center,b:nd});}
   }
+  // node groups (positioned via transform)
   for(const nd of nodes){
     const g=el('g',{class:'node '+nd.kind});
     if(themeDimmed&&nd.kind==='theme'&&nd.ref.id!==focusTheme)g.setAttribute('class','node theme dimmed');
     if(nd.kind==='center'){
-      g.appendChild(el('circle',{cx:nd.x,cy:nd.y,r:30,fill:'rgba(143,182,255,.08)',stroke:'rgba(143,182,255,.4)','stroke-width':1}));
-      g.appendChild(el('circle',{cx:nd.x,cy:nd.y,r:18,fill:'rgba(143,182,255,.16)'}));
-      g.appendChild(el('circle',{cx:nd.x,cy:nd.y,r:13,fill:'#dfe7ff',filter:'url(#glow)'}));
+      g.appendChild(el('circle',{r:30,fill:'rgba(143,182,255,.08)',stroke:'rgba(143,182,255,.4)','stroke-width':1}));
+      g.appendChild(el('circle',{r:18,fill:'rgba(143,182,255,.16)'}));
+      g.appendChild(el('circle',{r:13,fill:'#dfe7ff',filter:'url(#glow)'}));
       const full=(nd.ref.title||'').length>40?nd.ref.title.slice(0,38)+'…':(nd.ref.title||'');
       const words=full.split(' ');let line='',lines=[];
       words.forEach(w=>{if((line+w).length>18){lines.push(line.trim());line=w+' ';}else line+=w+' ';});lines.push(line.trim());
-      lines.forEach((ln,i)=>{const tx=el('text',{x:nd.x,y:nd.y+44+i*15});tx.textContent=ln;g.appendChild(tx);});
-      sky.appendChild(g);continue;
+      lines.forEach((ln,i)=>{const tx=el('text',{x:0,y:44+i*15});tx.textContent=ln;g.appendChild(tx);});
+    } else {
+      const isMissing=nd.kind==='missing';
+      const hit=el('circle',{r:nd.size+13,fill:'transparent'});g.appendChild(hit); // generous click target
+      const ring=el('circle',{r:nd.size+6,class:'ring',stroke:nd.color,opacity:isMissing?0.7:0.5});
+      if(isMissing)ring.setAttribute('stroke-dasharray','2 4');g.appendChild(ring);
+      const dot=el('circle',{r:nd.size,fill:isMissing?'none':nd.color,filter:'url(#glow)'});
+      if(isMissing){dot.setAttribute('stroke',nd.color);dot.setAttribute('stroke-width',2);}
+      g.appendChild(dot);
+      if(nd.kind==='theme'){const tx=el('text',{x:0,y:-nd.size-9});tx.textContent=nd.ref.label;g.appendChild(tx);}
+      else if(nd.kind==='thinker'){const tx=el('text',{x:0,y:-nd.size-8});tx.textContent=nd.ref.name;g.appendChild(tx);
+        const mt=el('text',{x:0,y:nd.size+14,class:'match'});mt.textContent=(nd.ref.match||'')+'%';g.appendChild(mt);}
+      else if(nd.kind==='missing'){const tx=el('text',{x:0,y:-nd.size-9});tx.textContent='+ '+nd.ref.label;g.appendChild(tx);}
+      g.style.cursor='pointer';
+      g.addEventListener('click',()=>onNodeClick(nd));
     }
-    const isMissing=nd.kind==='missing';
-    const ring=el('circle',{cx:nd.x,cy:nd.y,r:nd.size+6,class:'ring',stroke:nd.color,opacity:isMissing?0.7:0.5});
-    if(isMissing)ring.setAttribute('stroke-dasharray','2 4');g.appendChild(ring);
-    const dot=el('circle',{cx:nd.x,cy:nd.y,r:nd.size,fill:nd.color,filter:'url(#glow)'});
-    if(isMissing){dot.setAttribute('fill','none');dot.setAttribute('stroke',nd.color);dot.setAttribute('stroke-width',2);}
-    g.appendChild(dot);
-    if(nd.kind==='theme'){const tx=el('text',{x:nd.x,y:nd.y-nd.size-9});tx.textContent=nd.ref.label;g.appendChild(tx);}
-    else if(nd.kind==='thinker'){const tx=el('text',{x:nd.x,y:nd.y-nd.size-8});tx.textContent=nd.ref.name;g.appendChild(tx);
-      const mt=el('text',{x:nd.x,y:nd.y+nd.size+14,class:'match'});mt.textContent=(nd.ref.match||'')+'%';g.appendChild(mt);}
-    else if(nd.kind==='missing'){const tx=el('text',{x:nd.x,y:nd.y-nd.size-9});tx.textContent='+ '+nd.ref.label;g.appendChild(tx);}
-    g.style.cursor='pointer';g.addEventListener('click',()=>onNodeClick(nd));
-    sky.appendChild(g);
+    nd.gEl=g;sky.appendChild(g);
   }
+  tick();
+}
+/* Cheap per-frame update: just move existing elements. */
+function tick(){
+  for(const nd of nodes){if(nd.gEl&&nd.x!=null)nd.gEl.setAttribute('transform',`translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})`);}
+  for(const e of edges){if(e.a&&e.b&&e.a.x!=null&&e.b.x!=null){
+    e.el.setAttribute('x1',e.a.x.toFixed(1));e.el.setAttribute('y1',e.a.y.toFixed(1));
+    e.el.setAttribute('x2',e.b.x.toFixed(1));e.el.setAttribute('y2',e.b.y.toFixed(1));}}
 }
 
 /* ---- interaction ---- */
@@ -571,7 +589,7 @@ function runSteps(){
 }
 function stopSteps(){clearInterval(stepTimer);}
 
-async function analyze(transcriptText){
+async function analyze(transcriptText,force){
   const raw=urlInput.value.trim();
   const id=parseYT(raw);
   if(!id){toast('That doesn’t look like a YouTube link yet.');return;}
@@ -581,26 +599,33 @@ async function analyze(transcriptText){
   mapBtn.disabled=true;showPlayer(id);runSteps();
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({url:raw,videoId:id,transcript:transcriptText||null})});
+      body:JSON.stringify({url:raw,videoId:id,transcript:transcriptText||null,force:!!force})});
     const out=await res.json();
     if(!out.ok){setError(out.error||'Analysis failed.',out.needTranscript);return;}
     setConstellation(out.constellation);
   }catch(e){setError('Could not reach the local engine. Is server.py running? ('+e.message+')');}
   finally{mapBtn.disabled=false;stopSteps();}
 }
-function setConstellation(obj){
+function setConstellation(obj,restored){
   DATA=obj;focusTheme=null;focusThinker=null;revealMissing=false;hasData=true;
-  show('loadingState',false);show('errorState',false);
+  show('emptyState',false);show('loadingState',false);show('errorState',false);
   document.getElementById('revealBtn').hidden=false;document.getElementById('revealBtn').classList.remove('on');
-  document.getElementById('dock').hidden=false;
+  document.getElementById('dock').hidden=false;document.getElementById('remapBtn').hidden=false;
   if(obj.yt)showPlayer(obj.yt);
-  const a=loadAtlas();a.media[obj.title||'(untitled)']=(a.media[obj.title||'(untitled)']||0)+1;saveAtlas(a);
+  if(!restored){
+    const a=loadAtlas();a.media[obj.title||'(untitled)']=(a.media[obj.title||'(untitled)']||0)+1;saveAtlas(a);
+    try{localStorage.setItem('mediaConstellations.last',JSON.stringify(obj));}catch(e){}
+  }
   buildNodes();rebuildThinkers();rebuildMissing();renderMeta();renderRail();renderPraxis();
   setHint('Tap a glowing theme to open its thinkers · tap a thinker to read the lens');
-  toast('Constellation mapped.');
+  toast(restored?'Restored your last constellation.':'Constellation mapped.');
 }
 mapBtn.addEventListener('click',()=>analyze());
 urlInput.addEventListener('keydown',e=>{if(e.key==='Enter')analyze();});
+document.getElementById('remapBtn').addEventListener('click',()=>{
+  if(!currentVideoId){toast('Map a video first.');return;}
+  urlInput.value='https://youtu.be/'+currentVideoId;
+  toast('Re-mapping fresh — this takes a minute or two.');analyze(null,true);});
 
 /* ---- transcript fallback ---- */
 function openTpaste(){show('errorState',false);show('tpaste',true);}
@@ -638,6 +663,8 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
 /* ---- go ---- */
 renderRail();
 requestAnimationFrame(frame);
+try{const last=JSON.parse(localStorage.getItem('mediaConstellations.last'));
+  if(last&&Array.isArray(last.themes))setConstellation(last,true);}catch(e){}
 </script>
 </body>
 </html>
