@@ -53,9 +53,17 @@
   .scroll::-webkit-scrollbar-thumb{background:rgba(120,150,230,.28);border-radius:4px}
 
   .player{aspect-ratio:16/9;background:#000;position:relative}
-  .player iframe{width:100%;height:100%;border:0;display:block}
+  .player iframe,.player video{width:100%;height:100%;border:0;display:block;background:#000}
   .player .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     color:var(--faint);font-size:12.5px;text-align:center;padding:20px;background:#05070f}
+  .playbar{display:flex;align-items:center;gap:10px;padding:7px 18px;font-size:12px;color:var(--faint);
+    border-bottom:1px solid var(--line);background:rgba(8,12,26,.6)}
+  .playbar button{background:rgba(40,52,94,.7);border:1px solid var(--card-b);color:#cfe0ff;
+    border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600}
+  .playbar button:hover{filter:brightness(1.12)}
+  .playbar button:disabled{opacity:.55;cursor:default}
+  .playbar a{color:var(--accent);text-decoration:none;margin-left:auto}
+  .playbar a:hover{text-decoration:underline}
   .meta h2{font-size:17px;margin:2px 0 4px;line-height:1.25}
   .meta .by{color:var(--accent);font-size:13px;font-weight:600}
   .meta .sub{color:var(--dim);font-size:12px;margin-top:2px}
@@ -230,6 +238,11 @@
   <div class="main">
     <div class="col left">
       <div class="player" id="player"><div class="ph">The video you map will play here.</div></div>
+      <div class="playbar" id="playbar" hidden>
+        <span>Embed blocked by the channel?</span>
+        <button id="playHere">▶ Play here</button>
+        <a id="ytLink" href="#" target="_blank" rel="noopener">Watch on YouTube ↗</a>
+      </div>
       <div class="pad scroll">
         <div class="meta" id="meta"></div>
         <div class="blurb" id="blurb"></div>
@@ -502,9 +515,32 @@ document.getElementById('dockToggle').addEventListener('click',function(){
   const d=document.getElementById('dock');d.classList.toggle('collapsed');
   this.textContent=d.classList.contains('collapsed')?'Show ▴':'Hide ▾';});
 
-/* ---- left meta ---- */
-function showPlayer(id){document.getElementById('player').innerHTML=
-  `<iframe src="https://www.youtube.com/embed/${id}?rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;}
+/* ---- left meta + player ---- */
+let currentVideoId=null;
+function showPlayer(id){
+  currentVideoId=id;
+  document.getElementById('player').innerHTML=
+    `<iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+  const bar=document.getElementById('playbar');bar.hidden=false;
+  const link=document.getElementById('ytLink');link.href='https://www.youtube.com/watch?v='+id;
+  const btn=document.getElementById('playHere');btn.disabled=false;btn.textContent='▶ Play here';
+}
+async function playLocal(){
+  const id=currentVideoId;if(!id)return;
+  const btn=document.getElementById('playHere');btn.disabled=true;btn.textContent='Loading…';
+  try{
+    const r=await fetch('/api/stream?v='+id);const o=await r.json();
+    if(!o.ok||!o.url)throw new Error(o.error||'no stream');
+    document.getElementById('player').innerHTML=
+      `<video controls autoplay playsinline src="${o.url}"></video>`;
+    btn.textContent='Playing locally';
+  }catch(e){
+    toast('Couldn’t load a local stream — opening on YouTube instead.');
+    window.open('https://www.youtube.com/watch?v='+id,'_blank');
+    btn.disabled=false;btn.textContent='▶ Play here';
+  }
+}
+document.getElementById('playHere').addEventListener('click',playLocal);
 function renderMeta(){
   document.getElementById('meta').innerHTML=
     `<h2>${esc(DATA.title||'Untitled')}</h2><div class="by">${esc(DATA.speaker||'')}</div><div class="sub">${esc(DATA.sub||'')}</div>`;

@@ -98,6 +98,25 @@ def clean(text: str):
     return text
 
 
+def stream_url(vid: str):
+    """A direct progressive (audio+video) stream URL, to sidestep embed blocks.
+    Plays in a plain <video> tag; URL is short-lived and tied to this machine's IP."""
+    try:
+        r = subprocess.run(
+            ["yt-dlp", "--no-warnings", "-g", "-f",
+             "18/best[ext=mp4][acodec!=none][vcodec!=none]/best[acodec!=none][vcodec!=none]",
+             f"https://www.youtube.com/watch?v={vid}"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if r.returncode == 0:
+            url = next((l.strip() for l in r.stdout.splitlines() if l.startswith("http")), "")
+            if url:
+                return url
+    except Exception as e:
+        print(f"[stream] {e}", file=sys.stderr)
+    return None
+
+
 def fetch_meta(vid: str):
     try:
         r = subprocess.run(
@@ -240,6 +259,18 @@ def colourise(c: dict):
 @app.route("/")
 def index():
     return send_from_directory(HERE, "index.html")
+
+
+@app.route("/api/stream")
+def stream():
+    raw = request.args.get("v", "")
+    vid = video_id(raw) or raw
+    if not re.fullmatch(r"[\w-]{11}", vid or ""):
+        return jsonify(ok=False, error="bad video id"), 400
+    url = stream_url(vid)
+    if not url:
+        return jsonify(ok=False, error="No direct stream available — try Watch on YouTube."), 502
+    return jsonify(ok=True, url=url)
 
 
 @app.route("/api/analyze", methods=["POST"])
