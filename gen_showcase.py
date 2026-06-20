@@ -2,7 +2,7 @@
 import json, sys, concurrent.futures
 import server
 
-IDS = ["D9Ihs241zeg", "iG9CE55wbtY", "TMrtLsQbaok"]  # Adichie, Robinson, Greta
+IDS = ["evzcrlxGk3Q", "-d7oR0J9usQ", "pPKDq_6iKLY"]  # three new showcase videos
 
 def one(vid):
     cf = server.CACHE_DIR / f"{vid}.json"

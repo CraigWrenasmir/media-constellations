@@ -281,7 +281,8 @@ function renderMeta(){document.getElementById('meta').innerHTML=`<h2>${esc(DATA.
   document.getElementById('echoes').innerHTML=DATA.echoes&&DATA.echoes.length?`<div class="seclabel">Historical echoes — resonance, not equivalence</div>`+DATA.echoes.map(e=>`<div class="echo"><span class="yr">${esc(e.yr)}</span><p><b>${esc(e.t)}.</b> ${esc(e.p)}</p></div>`).join(''):'';}
 function setHint(s){const h=document.getElementById('hint');h.hidden=!s;h.textContent=s||'';}
 
-function renderGallery(){document.getElementById('gallery').innerHTML='<span class="lbl">Explore</span>'+ORDER.map(id=>{const c=DATASET[id];const label=(c&&(c.speaker||c.title)||id).split('—')[0].trim();return `<button class="chip ${id===cur?'active':''}" data-id="${id}">${esc(label)}</button>`;}).join('');
+function chipLabel(c,id){let s=(c&&(c.speaker||c.title))||id;s=s.split('(')[0].split(',')[0].split('—')[0].split('|')[0].trim();if(s.length>26)s=s.slice(0,25).trim()+'…';return s;}
+function renderGallery(){document.getElementById('gallery').innerHTML='<span class="lbl">Explore</span>'+ORDER.map(id=>{const c=DATASET[id];return `<button class="chip ${id===cur?'active':''}" data-id="${id}" title="${esc((c&&c.title)||'')}">${esc(chipLabel(c,id))}</button>`;}).join('');
   document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>load(b.dataset.id)));}
 
 function load(id){const obj=DATASET[id];if(!obj){toast('That constellation isn’t available.');return;}

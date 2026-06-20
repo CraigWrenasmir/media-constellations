@@ -8,9 +8,9 @@ DOCS = HERE / "docs"
 # Display order for the gallery (only those with a cached constellation are included).
 ORDER = [
     "N17G0Mw43YA",  # Pauline Hanson — National Press Club
-    "D9Ihs241zeg",  # Chimamanda Ngozi Adichie — The danger of a single story
-    "iG9CE55wbtY",  # Sir Ken Robinson — Do schools kill creativity?
-    "TMrtLsQbaok",  # Greta Thunberg — How dare you
+    "evzcrlxGk3Q",  # swap-in #1
+    "-d7oR0J9usQ",  # swap-in #2
+    "pPKDq_6iKLY",  # swap-in #3
 ]
 
 data, order = {}, []
