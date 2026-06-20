@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Media Constellations — a machine for more perspectives</title>
+<meta name="description" content="Turn media into a multi-perspective constellation of ideas — themes, thinkers, competing readings, historical echoes and constructive praxis." />
+<style>
+  :root{
+    --bg:#070a14; --bg2:#0b1022; --ink:#e8ecf8;
+    --dim:#9aa6c8; --faint:#5d688f; --line:rgba(150,170,230,.14);
+    --card:rgba(20,28,54,.72); --card-b:rgba(120,150,230,.16);
+    --accent:#8fb6ff; --glow:rgba(143,182,255,.55);
+    --teal:#46d6c4; --violet:#b48bff; --amber:#ffc06a; --rose:#ff7fa8; --green:#7ce0a0; --blue:#6fa8ff; --sand:#e7c98a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(1200px 800px at 70% -10%, #131c3a 0%, var(--bg2) 38%, var(--bg) 100%);
+    color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    overflow:hidden;-webkit-font-smoothing:antialiased}
+  #stars{position:fixed;inset:0;z-index:0;display:block}
+  .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;flex-wrap:wrap;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .brand .mark{width:30px;height:30px;flex:0 0 auto}
+  .brand h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px;white-space:nowrap}
+  .brand small{display:block;color:var(--dim);font-size:11px;font-weight:400;letter-spacing:.3px}
+  .gallery{display:flex;align-items:center;gap:7px;flex:1;flex-wrap:wrap;min-width:0}
+  .gallery .lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);font-weight:600;margin-right:2px}
+  .chip{background:rgba(30,40,74,.6);border:1px solid var(--card-b);color:var(--dim);border-radius:999px;
+    padding:6px 13px;font-size:12.5px;cursor:pointer;white-space:nowrap;transition:.15s}
+  .chip:hover{color:var(--ink);border-color:var(--accent)}
+  .chip.active{color:#cfe0ff;border-color:var(--accent);box-shadow:0 0 0 1px var(--glow) inset}
+  .ghostbtn{background:rgba(30,40,74,.5);border:1px solid var(--card-b);color:var(--dim);border-radius:999px;padding:6px 13px;font-size:12px;cursor:pointer}
+  .ghostbtn:hover{color:var(--ink)}
+  .main{flex:1;display:grid;grid-template-columns:330px 1fr 360px;min-height:0}
+  .col{min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .left{border-right:1px solid var(--line)}
+  .right{border-left:1px solid var(--line)}
+  .pad{padding:16px 18px}
+  .scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(120,150,230,.3) transparent}
+  .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:rgba(120,150,230,.28);border-radius:4px}
+  .player{aspect-ratio:16/9;background:#000;position:relative}
+  .thumb{display:block;width:100%;height:100%;position:relative;text-decoration:none}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.82}
+  .thumb .playoverlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:14px;font-weight:600;background:rgba(6,9,18,.28);text-shadow:0 1px 8px rgba(0,0,0,.7);transition:.18s}
+  .thumb:hover .playoverlay{background:rgba(6,9,18,.12)}
+  .meta h2{font-size:17px;margin:2px 0 4px;line-height:1.25}
+  .meta .by{color:var(--accent);font-size:13px;font-weight:600}
+  .meta .sub{color:var(--dim);font-size:12px;margin-top:2px}
+  .blurb{color:var(--dim);font-size:13px;margin-top:12px;font-style:italic;border-left:2px solid var(--card-b);padding-left:11px}
+  .seclabel{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);margin:20px 0 9px;font-weight:600}
+  .echo{display:flex;gap:10px;margin:9px 0;font-size:12.5px}
+  .echo b{color:var(--sand);font-weight:600}.echo .yr{color:var(--faint);font-size:11px;flex:0 0 auto;width:46px}.echo p{margin:0;color:var(--dim)}
+  .center{position:relative;background:radial-gradient(700px 540px at 50% 46%, rgba(40,58,120,.20), transparent 70%)}
+  #sky{position:absolute;inset:0;width:100%;height:100%}
+  .hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);color:var(--faint);font-size:12px;pointer-events:none;text-align:center;width:90%}
+  .node{cursor:pointer}
+  .node text{font-size:12px;fill:var(--ink);text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:rgba(7,10,20,.85);stroke-width:3px;font-weight:500}
+  .node .ring{fill:none;stroke-width:1.2}
+  .center-node text{font-size:12.5px;font-weight:600;fill:#dfe7ff}
+  .thinker text{font-size:11px;fill:#d6deff}.thinker .match{font-size:9.5px;fill:var(--faint);font-weight:600}
+  .dimmed{opacity:.18;transition:opacity .4s}
+  .missing-node text{fill:#ffd9e6}
+  .edge{stroke:var(--line);stroke-width:1}.edge.live{stroke:rgba(160,190,255,.4)}.edge.missing{stroke:rgba(255,140,180,.4);stroke-dasharray:3 5}
+  .reveal-btn{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;align-items:center;gap:9px;
+    background:linear-gradient(180deg,rgba(40,30,70,.9),rgba(30,22,56,.92));border:1px solid rgba(180,139,255,.45);color:#e9ddff;
+    border-radius:999px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 26px rgba(120,80,220,.35);transition:.18s}
+  .reveal-btn:hover{filter:brightness(1.12);transform:translateX(-50%) translateY(-1px)}
+  .reveal-btn.on{background:linear-gradient(180deg,#7a5bd8,#6346c0);color:#fff}
+  .reveal-btn .pulse{width:8px;height:8px;border-radius:50%;background:#ff9ec6;box-shadow:0 0 10px #ff7fb0;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.3)}}
+  [hidden]{display:none !important}
+  .panel-title{font-size:14.5px;font-weight:650;margin:0 0 3px}
+  .tag{display:inline-block;background:rgba(40,52,94,.7);border:1px solid var(--card-b);color:var(--dim);border-radius:6px;padding:3px 8px;font-size:11px;margin:3px 5px 0 0}
+  .tag.emo{color:#ffd0a0;border-color:rgba(255,180,120,.25)}.tag.rhet{color:#c0b0ff;border-color:rgba(180,150,255,.25)}
+  .qa{margin:14px 0}.qa h4{font-size:12px;color:var(--accent);margin:0 0 4px;font-weight:600}.qa ul{margin:0;padding-left:17px;color:var(--dim);font-size:13px}.qa ul li{margin:4px 0}.qa p{margin:0;color:var(--ink);font-size:13.5px}
+  .reading{border:1px solid var(--card-b);border-radius:10px;padding:11px 13px;margin:9px 0;background:rgba(16,22,46,.55)}
+  .reading .lens{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}.reading p{margin:5px 0 0;font-size:13px;color:var(--ink)}
+  .thinker-card .name{font-size:16px;font-weight:650}.thinker-card .trad{color:var(--accent);font-size:12px;font-weight:600;margin-top:1px}
+  .matchbar{height:5px;border-radius:3px;background:rgba(255,255,255,.08);margin:10px 0;overflow:hidden}.matchbar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#5e83ff,#b48bff)}
+  .book{display:flex;gap:9px;margin:8px 0;font-size:12.5px}.book .bk{color:var(--sand);font-weight:600}.book .bc{color:var(--dim);font-style:italic}
+  .backlink{color:var(--accent);cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:5px;margin-bottom:8px}.backlink:hover{text-decoration:underline}
+  .dock{border-top:1px solid var(--line);background:rgba(8,12,26,.82);backdrop-filter:blur(8px)}
+  .dock-head{display:flex;align-items:center;gap:8px;padding:9px 18px;flex-wrap:wrap}
+  .dock-head .lbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);font-weight:600;margin-right:4px}
+  .ptab{background:none;border:1px solid transparent;color:var(--dim);border-radius:8px;padding:5px 11px;font-size:12.5px;cursor:pointer}
+  .ptab:hover{color:var(--ink)}.ptab.active{color:#fff;background:rgba(50,66,120,.6);border-color:var(--card-b)}
+  .dock-toggle{margin-left:auto;color:var(--dim);cursor:pointer;font-size:12px;border:1px solid var(--card-b);border-radius:8px;padding:5px 11px;background:rgba(30,40,74,.5)}
+  .dock-body{padding:4px 18px 16px;display:grid;grid-template-columns:1.4fr 1fr;gap:22px;max-height:30vh;overflow-y:auto}
+  .dock.collapsed .dock-body{display:none}
+  .praxis-list{margin:0;padding-left:18px}.praxis-list li{margin:7px 0;font-size:13.5px;color:var(--ink)}.praxis-list li small{display:block;color:var(--dim);font-size:12px;margin-top:1px}
+  .personas .seclabel{margin-top:0}.persona{margin:9px 0}.persona b{color:var(--violet)}.persona .pl{color:var(--faint);font-size:11px;margin-left:6px}.persona p{margin:2px 0 0;color:var(--dim);font-size:12.5px}
+  .overlay{position:fixed;inset:0;z-index:50;background:rgba(4,7,16,.74);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:30px}
+  .overlay.on{display:flex}
+  .atlas{max-width:680px;width:100%;max-height:84vh;overflow:auto;background:linear-gradient(180deg,#0d142c,#0a0f22);border:1px solid var(--card-b);border-radius:18px;padding:26px 30px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .atlas h2{margin:0 0 2px;font-size:20px}.atlas .sub{color:var(--dim);font-size:13px;margin-bottom:18px}.atlas .x{float:right;cursor:pointer;color:var(--dim);font-size:22px;line-height:1;margin:-6px -8px 0 0}
+  .bars div{margin:7px 0}.bars .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}.bars .row span:last-child{color:var(--faint);font-size:11px}
+  .bars .b{height:7px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}.bars .b i{display:block;height:100%;background:linear-gradient(90deg,#46d6c4,#8fb6ff)}
+  .atlas .empty{color:var(--dim);font-style:italic;padding:20px 0}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:rgba(20,26,50,.96);border:1px solid var(--card-b);color:var(--ink);padding:12px 18px;border-radius:12px;font-size:13px;z-index:60;opacity:0;pointer-events:none;transition:.3s;max-width:460px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}.toast b{color:var(--accent)}
+  @media (max-width:1080px){.main{grid-template-columns:1fr;grid-template-rows:auto 50vh auto}.left,.right{border:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="4.5" fill="#8fb6ff"/><circle cx="20" cy="20" r="9" stroke="#46d6c4" stroke-width="1" opacity=".7"/>
+        <circle cx="20" cy="20" r="15" stroke="#b48bff" stroke-width="1" opacity=".5"/><circle cx="29" cy="20" r="2.2" fill="#46d6c4"/>
+        <circle cx="20" cy="6.5" r="2" fill="#b48bff"/><circle cx="9" cy="27" r="1.7" fill="#ffc06a"/><circle cx="33" cy="31" r="1.5" fill="#ff7fa8"/>
+      </svg>
+      <div><h1>Media Constellations</h1><small>increasing the dimensionality of understanding</small></div>
+    </div>
+    <div class="gallery" id="gallery"><span class="lbl">Explore</span></div>
+    <button class="ghostbtn" id="aboutBtn">ⓘ About</button>
+    <button class="ghostbtn" id="atlasBtn">✦ Your Atlas</button>
+  </header>
+  <div class="main">
+    <div class="col left">
+      <div class="player" id="player"></div>
+      <div class="pad scroll"><div class="meta" id="meta"></div><div class="blurb" id="blurb"></div><div id="echoes"></div></div>
+    </div>
+    <div class="col center" id="center">
+      <button class="reveal-btn" id="revealBtn"><span class="pulse"></span>Show me perspectives I haven't considered</button>
+      <svg id="sky"></svg>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="col right scroll pad" id="rail"></div>
+  </div>
+  <div class="dock" id="dock">
+    <div class="dock-head">
+      <span class="lbl">Praxis — what can be done</span>
+      <button class="ptab active" data-mode="reflective">Reflective</button>
+      <button class="ptab" data-mode="educational">Educational</button>
+      <button class="ptab" data-mode="community">Community</button>
+      <button class="ptab" data-mode="civic">Civic</button>
+      <button class="ptab" data-mode="creative">Creative</button>
+      <button class="ptab" data-mode="organising">Organising</button>
+      <button class="dock-toggle" id="dockToggle">Hide ▾</button>
+    </div>
+    <div class="dock-body"><div><ul class="praxis-list" id="praxisList"></ul></div>
+      <div class="personas"><div class="seclabel">Walk with…</div><div id="personas"></div></div></div>
+  </div>
+</div>
+<div class="overlay" id="atlasOverlay"><div class="atlas"><span class="x" id="atlasClose">×</span>
+  <h2>Your Atlas</h2><div class="sub">Not a map of identity — a map of attention. What keeps returning across what you explore.</div>
+  <div id="atlasBody"></div></div></div>
+<div class="overlay" id="aboutOverlay"><div class="atlas"><span class="x" id="aboutClose">×</span>
+  <h2>About this showcase</h2>
+  <div class="sub" style="margin-bottom:14px">A machine for increasing the number of perspectives you can hold at once.</div>
+  <p style="color:var(--ink);font-size:14px">Most platforms optimise for engagement and confirmation. <b>Media Constellations</b> does the opposite: it takes a piece of media and surfaces its underlying assumptions, the intellectual traditions that illuminate it, <b>competing interpretations that disagree with each other</b>, historical echoes, and — crucially — constructive things you can actually <b>do</b>. Not to tell you what to think, but to widen how many ways there are to think it.</p>
+  <p style="color:var(--dim);font-size:13px">Tap a theme planet to open its thinkers and its competing readings. Tap a thinker to read why they belong here. Hit <b>“perspectives I haven’t considered”</b> to reveal what the media left out. The <b>praxis</b> dock turns critique into agency.</p>
+  <p style="color:var(--faint);font-size:12.5px">This is a showcase: each constellation here was generated by an AI reasoning over the video’s transcript. The full tool maps any link you paste. Feedback very welcome.</p>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+const PALETTE={teal:'#46d6c4',violet:'#b48bff',amber:'#ffc06a',rose:'#ff7fa8',green:'#7ce0a0',blue:'#6fa8ff',sand:'#e7c98a'};
+const DATASET=window.CONSTELLATIONS||{}, ORDER=window.ORDER||Object.keys(DATASET);
+
+/* starfield */
+(function(){const c=document.getElementById('stars'),x=c.getContext('2d');let stars=[];
+  function size(){c.width=innerWidth;c.height=innerHeight;stars=[];const n=Math.min(220,innerWidth*innerHeight/9000);
+    for(let i=0;i<n;i++)stars.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.3+.2,a:Math.random(),s:Math.random()*.02+.004});}
+  function draw(){x.clearRect(0,0,c.width,c.height);for(const st of stars){st.a+=st.s;const tw=.4+Math.abs(Math.sin(st.a))*.6;x.globalAlpha=tw;x.fillStyle='#cdd9ff';x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;requestAnimationFrame(draw);}
+  size();draw();addEventListener('resize',size);})();
+
+let DATA=null,cur=null,focusTheme=null,focusThinker=null,revealMissing=false,praxisMode='reflective',hasData=false;
+const sky=document.getElementById('sky');let W=0,Hh=0,cx=0,cy=0,t0=performance.now(),nodes=[],edges=[];
+
+const ATLAS_KEY='mediaConstellations.atlas.v1';
+function loadAtlas(){try{return JSON.parse(localStorage.getItem(ATLAS_KEY))||{themes:{},thinkers:{},media:{}}}catch(e){return{themes:{},thinkers:{},media:{}}}}
+function saveAtlas(a){try{localStorage.setItem(ATLAS_KEY,JSON.stringify(a))}catch(e){}}
+function note(kind,label){const a=loadAtlas();a[kind][label]=(a[kind][label]||0)+1;saveAtlas(a);}
+
+function buildNodes(){nodes=[];if(!DATA)return;nodes.push({kind:'center',ref:DATA,x:0,y:0});
+  const n=DATA.themes.length;DATA.themes.forEach((th,i)=>nodes.push({kind:'theme',ref:th,baseAngle:(i/n)*Math.PI*2,radius:0,targetRadius:158+(i%2?20:0),speed:0.045+(i%3)*0.012,size:9,color:th.color}));}
+function rebuildThinkers(){nodes=nodes.filter(nd=>nd.kind==='center'||nd.kind==='theme'||nd.kind==='missing');
+  if(focusTheme){const th=DATA.themes.find(t=>t.id===focusTheme);if(th){const k=th.thinkers.length;th.thinkers.forEach((tk,i)=>nodes.push({kind:'thinker',ref:tk,parent:focusTheme,baseAngle:(i/k)*Math.PI*2,radius:0,targetRadius:78,speed:0.09+(i%2?0.03:0),size:6,color:th.color}));}}
+  if(hasData)renderStructure();}
+function rebuildMissing(){nodes=nodes.filter(nd=>nd.kind!=='missing');
+  if(revealMissing&&DATA.missing){const ms=DATA.missing,k=ms.length;ms.forEach((mm,i)=>nodes.push({kind:'missing',ref:mm,baseAngle:(i/k)*Math.PI*2+0.3,radius:0,targetRadius:250+(i%2?16:0),speed:0.03,size:7,color:mm.color}));}
+  if(hasData)renderStructure();}
+
+function frame(now){const t=(now-t0)/1000;const r=sky.getBoundingClientRect();W=r.width;Hh=r.height;cx=W/2;cy=Hh/2-6;
+  for(const nd of nodes){if(nd.kind==='center'){nd.x=cx;nd.y=cy;continue;}
+    if(nd.radius<nd.targetRadius)nd.radius=Math.min(nd.targetRadius,nd.radius+nd.targetRadius*0.08+2);
+    let ox=cx,oy=cy;if(nd.kind==='thinker'){const p=nodes.find(z=>z.kind==='theme'&&z.ref.id===nd.parent);if(p){ox=p.x;oy=p.y;}}
+    const ang=nd.baseAngle+t*nd.speed;nd.x=ox+Math.cos(ang)*nd.radius;nd.y=oy+Math.sin(ang)*nd.radius;}
+  if(hasData)tick();requestAnimationFrame(frame);}
+function el(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+
+function renderStructure(){
+  sky.innerHTML='';edges=[];const defs=el('defs',{});
+  defs.innerHTML=`<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+  sky.appendChild(defs);const center=nodes.find(n=>n.kind==='center');if(!center)return;const themeDimmed=!!focusTheme;
+  for(const nd of nodes){
+    if(nd.kind==='theme'){const live=focusTheme===nd.ref.id;const e=el('line',{class:'edge'+(live?' live':'')});if(themeDimmed&&!live)e.setAttribute('opacity','0.2');sky.appendChild(e);edges.push({el:e,a:center,b:nd});}
+    else if(nd.kind==='thinker'){const p=nodes.find(z=>z.kind==='theme'&&z.ref.id===nd.parent);if(p){const e=el('line',{class:'edge live'});sky.appendChild(e);edges.push({el:e,a:p,b:nd});}}
+    else if(nd.kind==='missing'){const e=el('line',{class:'edge missing'});sky.appendChild(e);edges.push({el:e,a:center,b:nd});}}
+  for(const nd of nodes){const g=el('g',{class:'node '+nd.kind});
+    if(themeDimmed&&nd.kind==='theme'&&nd.ref.id!==focusTheme)g.setAttribute('class','node theme dimmed');
+    if(nd.kind==='center'){
+      g.appendChild(el('circle',{r:30,fill:'rgba(143,182,255,.08)',stroke:'rgba(143,182,255,.4)','stroke-width':1}));
+      g.appendChild(el('circle',{r:18,fill:'rgba(143,182,255,.16)'}));g.appendChild(el('circle',{r:13,fill:'#dfe7ff',filter:'url(#glow)'}));
+      const full=(nd.ref.title||'').length>40?nd.ref.title.slice(0,38)+'…':(nd.ref.title||'');const words=full.split(' ');let line='',lines=[];
+      words.forEach(w=>{if((line+w).length>18){lines.push(line.trim());line=w+' ';}else line+=w+' ';});lines.push(line.trim());
+      lines.forEach((ln,i)=>{const tx=el('text',{x:0,y:44+i*15});tx.textContent=ln;g.appendChild(tx);});
+    } else {
+      const isMissing=nd.kind==='missing';
+      g.appendChild(el('circle',{r:nd.size+13,fill:'transparent'}));
+      const ring=el('circle',{r:nd.size+6,class:'ring',stroke:nd.color,opacity:isMissing?0.7:0.5});if(isMissing)ring.setAttribute('stroke-dasharray','2 4');g.appendChild(ring);
+      const dot=el('circle',{r:nd.size,fill:isMissing?'none':nd.color,filter:'url(#glow)'});if(isMissing){dot.setAttribute('stroke',nd.color);dot.setAttribute('stroke-width',2);}g.appendChild(dot);
+      if(nd.kind==='theme'){const tx=el('text',{x:0,y:-nd.size-9});tx.textContent=nd.ref.label;g.appendChild(tx);}
+      else if(nd.kind==='thinker'){const tx=el('text',{x:0,y:-nd.size-8});tx.textContent=nd.ref.name;g.appendChild(tx);const mt=el('text',{x:0,y:nd.size+14,class:'match'});mt.textContent=(nd.ref.match||'')+'%';g.appendChild(mt);}
+      else if(nd.kind==='missing'){const tx=el('text',{x:0,y:-nd.size-9});tx.textContent='+ '+nd.ref.label;g.appendChild(tx);}
+      g.style.cursor='pointer';g.addEventListener('click',()=>onNodeClick(nd));}
+    nd.gEl=g;sky.appendChild(g);}
+  tick();}
+function tick(){for(const nd of nodes){if(nd.gEl&&nd.x!=null)nd.gEl.setAttribute('transform',`translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})`);}
+  for(const e of edges){if(e.a&&e.b&&e.a.x!=null&&e.b.x!=null){e.el.setAttribute('x1',e.a.x.toFixed(1));e.el.setAttribute('y1',e.a.y.toFixed(1));e.el.setAttribute('x2',e.b.x.toFixed(1));e.el.setAttribute('y2',e.b.y.toFixed(1));}}}
+
+function onNodeClick(nd){
+  if(nd.kind==='center'){focusTheme=null;focusThinker=null;rebuildThinkers();renderRail();return;}
+  if(nd.kind==='theme'){focusTheme=(focusTheme===nd.ref.id)?null:nd.ref.id;focusThinker=null;if(focusTheme)note('themes',nd.ref.label);rebuildThinkers();renderRail();
+    setHint(focusTheme?'Thinkers now orbit this theme · tap one to read its lens · tap the centre to zoom out':'Tap a glowing theme to open its thinkers · tap a thinker to read the lens');return;}
+  if(nd.kind==='thinker'){focusThinker=nd.ref;note('thinkers',nd.ref.name);renderThinker(nd.ref);return;}
+  if(nd.kind==='missing'){renderMissing(nd.ref);return;}}
+
+const rail=document.getElementById('rail');
+function renderRail(){if(!DATA)return;if(focusThinker){renderThinker(focusThinker);return;}
+  if(focusTheme){const th=DATA.themes.find(t=>t.id===focusTheme);
+    rail.innerHTML=`<div class="backlink" onclick="zoomOut()">‹ back to the whole constellation</div>
+      <div class="panel-title" style="color:${th.color}">${esc(th.label)}</div>
+      <div style="margin:6px 0 2px">${(th.emotion||[]).map(e=>`<span class="tag emo">${esc(e)}</span>`).join('')}${(th.rhetoric||[]).map(r=>`<span class="tag rhet">${esc(r)}</span>`).join('')}</div>
+      <div class="seclabel" style="margin-top:18px">The system disagrees with itself</div>
+      ${(th.readings||[]).map(r=>`<div class="reading"><div class="lens" style="color:${r.color||th.color}">${esc(r.lens)} reading</div><p>${esc(r.p)}</p></div>`).join('')}
+      <div class="seclabel">Thinkers in this theme</div>
+      ${(th.thinkers||[]).map((tk,i)=>`<div class="book" style="cursor:pointer" onclick="openThinker('${th.id}',${i})"><span class="bk" style="color:${th.color}">●</span><div><b>${esc(tk.name)}</b> <span style="color:var(--faint)">· ${tk.match}%</span><br><span class="bc">${esc(tk.trad)}</span></div></div>`).join('')}`;
+  } else {const a=DATA.analysis||{};
+    rail.innerHTML=`<div class="panel-title">Multi-perspective analysis</div>
+      <div class="qa"><h4>What is happening?</h4><p>${esc(a.happening||'')}</p></div>
+      ${qaList('What assumptions are at work?',a.assumptions)}${qaList('What tensions live inside it?',a.tensions)}
+      ${qaList('What perspectives are absent?',a.absent)}${qaList('What questions should we ask?',a.questions)}
+      <div style="color:var(--faint);font-size:12px;margin-top:14px">Tap a theme in the constellation to open its competing readings and thinkers.</div>`;}}
+function qaList(h,arr){return `<div class="qa"><h4>${h}</h4><ul>${(arr||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;}
+function renderThinker(tk){const th=DATA.themes.find(t=>t.id===focusTheme)||DATA.themes.find(t=>(t.thinkers||[]).includes(tk));
+  rail.innerHTML=`<div class="backlink" onclick="backToTheme()">‹ back to ${th?esc(th.label):'theme'}</div>
+    <div class="thinker-card"><div class="name">${esc(tk.name)}</div><div class="trad">${esc(tk.trad)}</div>
+      <div class="matchbar"><i style="width:${tk.match}%"></i></div>
+      <div style="color:var(--dim);font-size:12px;margin-top:-4px">${tk.match}% relevance to this media</div>
+      <div class="qa"><h4>Why this thinker, here?</h4><p>${esc(tk.why)}</p></div>
+      <div class="seclabel">Read into the orbit</div>
+      ${(tk.books||[]).map(b=>`<div class="book"><span class="bk">▸</span><div><span class="bk">${esc(b.t)}</span> <span style="color:var(--faint)">${b.y<0?Math.abs(b.y)+' BCE':b.y}</span><br><span class="bc">${esc(b.c)}</span></div></div>`).join('')}
+      <div class="seclabel">Concepts orbiting</div><div>${(tk.concepts||[]).map(c=>`<span class="tag">${esc(c)}</span>`).join('')}</div></div>`;}
+function renderMissing(mm){rail.innerHTML=`<div class="backlink" onclick="renderRail()">‹ back</div>
+  <div class="panel-title" style="color:${mm.color}">+ ${esc(mm.label)}</div>
+  <div class="seclabel" style="margin-top:14px">A perspective the media didn’t consider</div>
+  <p style="font-size:14px;color:var(--ink)">${esc(mm.why)}</p>
+  <div style="color:var(--faint);font-size:12px;margin-top:16px">This is the soul of the tool: not what to think, but how many more ways there are to think it.</div>`;}
+window.zoomOut=function(){focusTheme=null;focusThinker=null;rebuildThinkers();renderRail();setHint('Tap a glowing theme to open its thinkers · tap a thinker to read the lens');};
+window.backToTheme=function(){focusThinker=null;renderRail();};
+window.openThinker=function(thid,i){focusTheme=thid;const tk=DATA.themes.find(t=>t.id===thid).thinkers[i];focusThinker=tk;note('thinkers',tk.name);rebuildThinkers();renderThinker(tk);};
+
+function renderPraxis(){if(!DATA||!DATA.praxis)return;const list=DATA.praxis[praxisMode]||[];
+  document.getElementById('praxisList').innerHTML=list.map(p=>`<li>${esc(p.t)}<small>${esc(p.s)}</small></li>`).join('');
+  document.getElementById('personas').innerHTML=(DATA.praxis.personas||[]).map(p=>`<div class="persona"><b>${esc(p.n)}</b><span class="pl">${esc(p.l)}</span><p>${esc(p.p)}</p></div>`).join('');}
+document.querySelectorAll('.ptab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.ptab').forEach(x=>x.classList.remove('active'));b.classList.add('active');praxisMode=b.dataset.mode;renderPraxis();}));
+document.getElementById('dockToggle').addEventListener('click',function(){const d=document.getElementById('dock');d.classList.toggle('collapsed');this.textContent=d.classList.contains('collapsed')?'Show ▴':'Hide ▾';});
+
+function showPlayer(id){const url='https://www.youtube.com/watch?v='+id;
+  document.getElementById('player').innerHTML=`<a class="thumb" href="${url}" target="_blank" rel="noopener"><img src="https://img.youtube.com/vi/${id}/hqdefault.jpg" alt=""><span class="playoverlay">▶ Watch on YouTube</span></a>`;}
+function renderMeta(){document.getElementById('meta').innerHTML=`<h2>${esc(DATA.title||'Untitled')}</h2><div class="by">${esc(DATA.speaker||'')}</div><div class="sub">${esc(DATA.sub||'')}</div>`;
+  document.getElementById('blurb').textContent=DATA.blurb||'';
+  document.getElementById('echoes').innerHTML=DATA.echoes&&DATA.echoes.length?`<div class="seclabel">Historical echoes — resonance, not equivalence</div>`+DATA.echoes.map(e=>`<div class="echo"><span class="yr">${esc(e.yr)}</span><p><b>${esc(e.t)}.</b> ${esc(e.p)}</p></div>`).join(''):'';}
+function setHint(s){const h=document.getElementById('hint');h.hidden=!s;h.textContent=s||'';}
+
+function renderGallery(){document.getElementById('gallery').innerHTML='<span class="lbl">Explore</span>'+ORDER.map(id=>{const c=DATASET[id];const label=(c&&(c.speaker||c.title)||id).split('—')[0].trim();return `<button class="chip ${id===cur?'active':''}" data-id="${id}">${esc(label)}</button>`;}).join('');
+  document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>load(b.dataset.id)));}
+
+function load(id){const obj=DATASET[id];if(!obj){toast('That constellation isn’t available.');return;}
+  cur=id;DATA=obj;focusTheme=null;focusThinker=null;revealMissing=false;hasData=true;
+  document.getElementById('revealBtn').classList.remove('on');
+  if(obj.yt)showPlayer(obj.yt);
+  const a=loadAtlas();a.media[obj.title||'(untitled)']=(a.media[obj.title||'(untitled)']||0)+1;saveAtlas(a);
+  buildNodes();rebuildThinkers();rebuildMissing();renderGallery();renderMeta();renderRail();renderPraxis();
+  setHint('Tap a glowing theme to open its thinkers · tap a thinker to read the lens');}
+
+document.getElementById('revealBtn').addEventListener('click',function(){if(!DATA)return;revealMissing=!revealMissing;this.classList.toggle('on',revealMissing);rebuildMissing();
+  if(revealMissing&&DATA.missing)toast(`<b>${DATA.missing.length} perspectives</b> the media didn’t consider have entered the constellation — the dashed nodes at the edge. Tap one.`);});
+
+function renderAtlas(){const a=loadAtlas(),body=document.getElementById('atlasBody');
+  const th=Object.entries(a.themes).sort((x,y)=>y[1]-x[1]),tk=Object.entries(a.thinkers).sort((x,y)=>y[1]-x[1]),md=Object.entries(a.media).sort((x,y)=>y[1]-x[1]);
+  if(!th.length&&!tk.length){body.innerHTML=`<div class="empty">Your atlas is still dark. Open some themes and thinkers and they’ll accumulate here — a record of where your attention keeps going.</div>`;return;}
+  const max=arr=>Math.max(...arr.map(e=>e[1]),1);
+  const bars=(arr,m)=>`<div class="bars">${arr.slice(0,8).map(([k,v])=>`<div><div class="row"><span>${esc(k)}</span><span>${v}×</span></div><div class="b"><i style="width:${v/m*100}%"></i></div></div>`).join('')}</div>`;
+  body.innerHTML=(th.length?`<div class="seclabel">Themes your attention returns to</div>${bars(th,max(th))}`:'')+(tk.length?`<div class="seclabel" style="margin-top:18px">Thinkers you keep opening</div>${bars(tk,max(tk))}`:'')+(md.length?`<div class="seclabel" style="margin-top:18px">Media visited</div>${bars(md,max(md))}`:'');}
+function openOv(id){document.getElementById(id).classList.add('on');}function closeOv(id){document.getElementById(id).classList.remove('on');}
+document.getElementById('atlasBtn').addEventListener('click',()=>{renderAtlas();openOv('atlasOverlay');});
+document.getElementById('atlasClose').addEventListener('click',()=>closeOv('atlasOverlay'));
+document.getElementById('aboutBtn').addEventListener('click',()=>openOv('aboutOverlay'));
+document.getElementById('aboutClose').addEventListener('click',()=>closeOv('aboutOverlay'));
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('on');}));
+
+let toastTimer=null;function toast(html){const t=document.getElementById('toast');t.innerHTML=html;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),5200);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* go */
+requestAnimationFrame(frame);
+if(ORDER.length){load(ORDER[0]);} else {document.getElementById('rail').innerHTML='<div style="color:var(--faint)">No constellations bundled yet.</div>';}
+</script>
+</body>
+</html>
